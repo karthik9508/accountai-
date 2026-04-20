@@ -2,7 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getChatHistory, getMonthlySummary, getBalance } from '@/lib/transactions'
 import { signOutAction } from '@/app/actions/auth'
+import { clearChatAction } from '@/app/actions/chat'
 import ChatWindow from './_components/chat-window'
+import ClearChatButton from './_components/clear-chat-button'
 
 export default async function ChatPage() {
   const supabase = await createClient()
@@ -126,12 +128,15 @@ export default async function ChatPage() {
               </div>
             </div>
           </div>
-          <a
-            href="/reports"
-            className="hidden sm:flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-400 hover:border-emerald-500/30 hover:text-emerald-400 transition"
-          >
-            📊 Reports
-          </a>
+          <div className="flex items-center gap-2">
+            <ClearChatButton clearAction={clearChatAction} />
+            <a
+              href="/reports"
+              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-medium text-gray-400 hover:border-emerald-500/30 hover:text-emerald-400 transition"
+            >
+              📊 Reports
+            </a>
+          </div>
         </div>
 
         {/* Chat window — client component */}

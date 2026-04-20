@@ -218,3 +218,11 @@ export async function getChatHistory(
   if (error) return []
   return data ?? []
 }
+
+export async function clearChatHistory(userId: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('chat_messages')
+    .delete()
+    .eq('user_id', userId)
+}
