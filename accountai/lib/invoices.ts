@@ -422,3 +422,76 @@ export async function deleteInvoice(
   }
   return true
 }
+
+// ── Customer Database Stats ─────────────────────────────────
+
+export interface CustomerStats {
+  id: string
+  name: string
+  totalSales: number
+  outstandingBalance: number
+}
+
+export async function getAllCustomersWithStats(userId: string): Promise<CustomerStats[]> {
+  const supabase = await createClient()
+
+  // 1. Fetch all customers
+  const { data: customers } = await supabase
+    .from('customers')
+    .select('id, name')
+    .eq('user_id', userId)
+    .order('name')
+
+  if (!customers || customers.length === 0) return []
+
+  // 2. Fetch all income transactions for this user
+  const { data: transactions } = await supabase
+    .from('transactions')
+    .select('customer_name, amount')
+    .eq('user_id', userId)
+    .eq('type', 'income')
+    .not('customer_name', 'is', null)
+
+  // 3. Fetch all unpaid/partial invoices
+  const { data: invoices } = await supabase
+    .from('invoices')
+    .select('customer_id, total_amount')
+    .eq('user_id', userId)
+    .neq('status', 'paid')
+
+  // Aggregate stats per customer
+  const statsMap = new Map<string, CustomerStats>()
+
+  for (const c of customers) {
+    statsMap.set(c.id, {
+      id: c.id,
+      name: c.name,
+      totalSales: 0,
+      outstandingBalance: 0,
+    })
+  }
+
+  // Add outstanding balances
+  if (invoices) {
+    for (const inv of invoices) {
+      if (inv.customer_id && statsMap.has(inv.customer_id)) {
+        const stats = statsMap.get(inv.customer_id)!
+        stats.outstandingBalance += Number(inv.total_amount)
+      }
+    }
+  }
+
+  // Add total sales
+  if (transactions) {
+    for (const tx of transactions) {
+      if (!tx.customer_name) continue
+      const matchedCustomer = customers.find(c => c.name.toLowerCase() === tx.customer_name!.toLowerCase())
+      if (matchedCustomer && statsMap.has(matchedCustomer.id)) {
+        const stats = statsMap.get(matchedCustomer.id)!
+        stats.totalSales += Number(tx.amount)
+      }
+    }
+  }
+
+  return Array.from(statsMap.values()).sort((a, b) => b.totalSales - a.totalSales)
+}

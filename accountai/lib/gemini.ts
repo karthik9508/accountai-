@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
 // Compact prompt to minimize token usage on free tier
-const SYSTEM_PROMPT = `You are AccountAI, an accounting assistant for Indian users.
+const SYSTEM_PROMPT = `You are FintraBooks, an accounting assistant for Indian users.
 Always respond with ONLY valid JSON — no markdown, no extra text.
 
 Response format:

@@ -24,7 +24,7 @@ export default async function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-white tracking-tight">AccountAI</span>
+          <span className="text-lg font-bold text-white tracking-tight">FintraBooks</span>
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -58,7 +58,7 @@ export default async function Home() {
         </h1>
 
         <p className="mt-5 text-base md:text-lg text-gray-400 max-w-lg leading-relaxed">
-          Just tell AccountAI what you spent or earned — in plain language. We handle the rest: parsing, categorizing, and reporting.
+          Just tell FintraBooks what you spent or earned — in plain language. We handle the rest: parsing, categorizing, and reporting.
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -117,7 +117,7 @@ export default async function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
           {/* Connecting line for desktop */}
           <div className="hidden md:block absolute top-12 left-1/6 right-1/6 h-0.5 bg-gradient-to-r from-emerald-500/0 via-emerald-500/20 to-emerald-500/0" />
-          
+
           {[
             { step: '01', title: 'Chat Naturally', desc: 'Type or speak your transaction details. "Spent ₹5000 on Uber" or "Received ₹10000 from Client X".' },
             { step: '02', title: 'AI Processing', desc: 'Our advanced AI instantly parses, categorizes, and structures the data without manual entry.' },
@@ -219,7 +219,7 @@ export default async function Home() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { quote: "AccountAI completely changed how I manage my freelance business. I just text my expenses on the go and it's perfectly categorized.", author: "Sarah Jenkins", role: "Freelance Designer" },
+            { quote: "FintraBooks completely changed how I manage my freelance business. I just text my expenses on the go and it's perfectly categorized.", author: "Sarah Jenkins", role: "Freelance Designer" },
             { quote: "The invoice generation alone is worth it. What used to take me hours now happens instantly from a simple prompt.", author: "Michael Chen", role: "Agency Owner" },
             { quote: "Finally, accounting software that doesn't feel like a spreadsheet from 1995. The AI is incredibly accurate.", author: "Emma Davis", role: "Startup Founder" }
           ].map((t, i) => (
@@ -243,10 +243,10 @@ export default async function Home() {
       <section className="relative z-10 py-24 px-6 text-center">
         <div className="max-w-4xl mx-auto bg-gradient-to-b from-emerald-900/20 to-[#080c0a] border border-emerald-500/20 rounded-3xl p-12 md:p-20 relative overflow-hidden">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[500px] max-h-[500px] bg-emerald-500/20 blur-[100px] rounded-full pointer-events-none" />
-          
+
           <div className="relative z-10">
             <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">Ready to put your accounting on autopilot?</h2>
-            <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">Join thousands of modern businesses using AccountAI to save time, reduce errors, and focus on growth.</p>
+            <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">Join thousands of modern businesses using FintraBooks to save time, reduce errors, and focus on growth.</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/signup"
@@ -261,9 +261,53 @@ export default async function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 py-6 text-center text-xs text-gray-700">
-        © 2026 AccountAI — Built with Next.js & Supabase
+      <footer className="relative z-10 border-t border-white/5 bg-[#080c0a] pt-12 pb-8 px-6 md:px-12 mt-12">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center md:items-start gap-8">
+          <div className="flex flex-col items-center md:items-start gap-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20 ring-1 ring-emerald-500/40">
+                <svg className="h-4 w-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </div>
+              <span className="text-lg font-bold text-white tracking-tight">FintraBooks</span>
+            </div>
+            <p className="text-gray-400 text-sm max-w-xs text-center md:text-left">
+              The AI-powered financial co-pilot for modern businesses and freelancers.
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center md:items-end gap-2 text-sm text-gray-400">
+            <h3 className="text-white font-semibold mb-1">Contact Us</h3>
+            <a href="mailto:support@fintrabooks.com" className="hover:text-emerald-400 transition">support@fintrabooks.com</a>
+            {/* Update this phone number to your actual number */}
+            <a href="tel:+918695018620" className="hover:text-emerald-400 transition">+91 8695018620</a>
+            <p>Tiruppur, India</p>
+          </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-white/5 text-center flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-600">
+          <p>© 2026 FintraBooks. All rights reserved.</p>
+          <div className="flex gap-4">
+            <Link href="#" className="hover:text-gray-400 transition">Privacy Policy</Link>
+            <Link href="#" className="hover:text-gray-400 transition">Terms of Service</Link>
+          </div>
+        </div>
       </footer>
+
+      {/* Floating WhatsApp Button */}
+      {/* Update the phone number in the href link below! */}
+      <a
+        href="https://wa.me/911234567890?text=Hi%20FintraBooks,%20I%20want%20to%20know%20more!"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-emerald-500/20 hover:scale-110 hover:shadow-emerald-500/40 transition-all duration-300"
+        aria-label="Contact us on WhatsApp"
+      >
+        <svg viewBox="0 0 24 24" fill="currentColor" className="h-8 w-8">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+        </svg>
+      </a>
     </div>
   )
 }

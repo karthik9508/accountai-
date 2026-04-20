@@ -6,6 +6,7 @@ import {
   getRecentTransactions,
   getBalance,
 } from '@/lib/transactions'
+import { getAllCustomersWithStats } from '@/lib/invoices'
 
 export default async function ReportsPage() {
   const supabase = await createClient()
@@ -13,12 +14,13 @@ export default async function ReportsPage() {
   if (!user) redirect('/login')
 
   const now = new Date()
-  const [summary, expenseBreakdown, incomeBreakdown, recent, balance] = await Promise.all([
+  const [summary, expenseBreakdown, incomeBreakdown, recent, balance, customers] = await Promise.all([
     getMonthlySummary(user.id, now.getFullYear(), now.getMonth() + 1),
     getCategoryBreakdown(user.id, 'expense', 6),
     getCategoryBreakdown(user.id, 'income', 6),
     getRecentTransactions(user.id, 15),
     getBalance(user.id),
+    getAllCustomersWithStats(user.id),
   ])
 
   const fmt = (n: number) =>
@@ -36,13 +38,13 @@ export default async function ReportsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
           </div>
-          <span className="font-bold text-white text-sm">AccountAI</span>
+          <span className="font-bold text-white text-sm">FintraBooks</span>
         </div>
         <nav className="space-y-1">
           {[
             { href: '/chat', label: 'Chat', icon: '💬', active: false },
             { href: '/reports', label: 'Reports', icon: '📊', active: true },
-            { href: '/dashboard', label: 'Dashboard', icon: '◈', active: false },
+            { href: '/settings', label: 'Settings', icon: '⚙', active: false },
           ].map((item) => (
             <a key={item.href} href={item.href}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
@@ -55,7 +57,7 @@ export default async function ReportsPage() {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pb-16 md:pb-0">
         <header className="px-6 py-5 border-b border-white/5">
           <h1 className="text-xl font-bold text-white">Financial Reports</h1>
           <p className="text-xs text-gray-500 mt-0.5">{monthName} · All-time balance: <span className={balance >= 0 ? 'text-emerald-400 font-semibold' : 'text-red-400 font-semibold'}>{fmt(balance)}</span></p>
@@ -200,8 +202,73 @@ export default async function ReportsPage() {
               </div>
             )}
           </div>
+
+          {/* Customer Balances */}
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+              <h2 className="text-sm font-semibold text-white">Customer Balances</h2>
+              <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500 bg-white/5 px-2 py-1 rounded">Directory</span>
+            </div>
+            {customers.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <p className="text-sm text-gray-600">No customers yet.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-600 border-b border-white/5">
+                      <th className="text-left px-5 py-3 font-medium">Customer Name</th>
+                      <th className="text-right px-5 py-3 font-medium">Total Sales</th>
+                      <th className="text-right px-5 py-3 font-medium">Outstanding Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customers.map((c, i) => (
+                      <tr
+                        key={c.id}
+                        className={`border-b border-white/5 hover:bg-white/[0.02] transition ${i % 2 === 0 ? '' : 'bg-white/[0.01]'}`}
+                      >
+                        <td className="px-5 py-3 text-gray-300 font-medium">
+                          {c.name}
+                        </td>
+                        <td className="px-5 py-3 text-right text-emerald-400">
+                          {fmt(c.totalSales)}
+                        </td>
+                        <td className={`px-5 py-3 text-right font-semibold ${
+                          c.outstandingBalance > 0 ? 'text-amber-400' : 'text-gray-500'
+                        }`}>
+                          {fmt(c.outstandingBalance)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </main>
+
+      {/* ── Mobile Bottom Nav ─────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-white/5 bg-[#0a0f0d] px-2 pb-[env(safe-area-inset-bottom)]">
+        {[
+          { href: '/chat', label: 'Chat', icon: '💬', active: false },
+          { href: '/reports', label: 'Reports', icon: '📊', active: true },
+          { href: '/settings', label: 'Settings', icon: '⚙', active: false },
+        ].map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className={`flex flex-1 flex-col items-center justify-center gap-1 py-3 transition ${
+              item.active ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <span className="text-xl">{item.icon}</span>
+            <span className="text-[10px] font-medium">{item.label}</span>
+          </a>
+        ))}
+      </nav>
     </div>
   )
 }

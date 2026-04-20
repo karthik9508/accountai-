@@ -17,6 +17,13 @@ export default async function ChatPage() {
 
   const displayName = user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'User'
 
+  const businessProfile = {
+    business_name: user.user_metadata?.business_name,
+    business_address: user.user_metadata?.business_address,
+    business_contact: user.user_metadata?.business_contact,
+    business_email: user.user_metadata?.business_email,
+  }
+
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
@@ -31,7 +38,7 @@ export default async function ChatPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
             </svg>
           </div>
-          <span className="font-bold text-white text-sm tracking-tight">AccountAI</span>
+          <span className="font-bold text-white text-sm tracking-tight">FintraBooks</span>
         </div>
 
         {/* Financial Summary */}
@@ -104,7 +111,7 @@ export default async function ChatPage() {
       </aside>
 
       {/* ── Chat area ─────────────────────────────── */}
-      <main className="flex flex-1 flex-col min-w-0">
+      <main className="flex flex-1 flex-col min-w-0 pb-16 md:pb-0">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-[#080c0a]">
           <div className="flex items-center gap-3">
@@ -112,7 +119,7 @@ export default async function ChatPage() {
               <span className="text-sm">🤖</span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">AccountAI Assistant</p>
+              <p className="text-sm font-semibold text-white">FintraBooks Assistant</p>
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-[10px] text-gray-500">AI-powered · Gemini 1.5 Flash</span>
@@ -131,8 +138,29 @@ export default async function ChatPage() {
         <ChatWindow
           initialMessages={messages}
           userName={displayName}
+          businessProfile={businessProfile}
         />
       </main>
+
+      {/* ── Mobile Bottom Nav ─────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-white/5 bg-[#0a0f0d] px-2 pb-[env(safe-area-inset-bottom)]">
+        {[
+          { href: '/chat', label: 'Chat', icon: '💬', active: true },
+          { href: '/reports', label: 'Reports', icon: '📊', active: false },
+          { href: '/settings', label: 'Settings', icon: '⚙', active: false },
+        ].map((item) => (
+          <a
+            key={item.href}
+            href={item.href}
+            className={`flex flex-1 flex-col items-center justify-center gap-1 py-3 transition ${
+              item.active ? 'text-emerald-400' : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <span className="text-xl">{item.icon}</span>
+            <span className="text-[10px] font-medium">{item.label}</span>
+          </a>
+        ))}
+      </nav>
     </div>
   )
 }

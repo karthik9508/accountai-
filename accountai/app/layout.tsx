@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AccountAI | The Best AI Bookkeeping App & Accounting Automation",
-  description: "AccountAI is a leading AI accounting app for small businesses in India. Automate your bookkeeping with our automatic expense tracker using chat. Experience the future of AI accounting today.",
+  title: "FintraBooks | The Best AI Bookkeeping App & Accounting Automation",
+  description: "FintraBooks is a leading AI accounting app for small businesses in India. Automate your bookkeeping with our automatic expense tracker using chat. Experience the future of AI accounting today.",
   keywords: [
     "AI bookkeeping app",
     "ai accounting",

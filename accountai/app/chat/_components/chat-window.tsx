@@ -43,6 +43,12 @@ interface Message {
 interface Props {
   initialMessages: ChatMessage[]
   userName: string
+  businessProfile?: {
+    business_name?: string
+    business_address?: string
+    business_contact?: string
+    business_email?: string
+  }
 }
 
 const SUGGESTIONS = [
@@ -322,7 +328,7 @@ function InvoicePromptCard({
 }
 
 /* ── Retrieved Invoice Card ── */
-function RetrievedInvoiceCard({ invoiceData }: { invoiceData: any }) {
+function RetrievedInvoiceCard({ invoiceData, businessProfile }: { invoiceData: any, businessProfile?: any }) {
   return (
     <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
       <div className="flex items-center justify-between mb-2">
@@ -355,6 +361,7 @@ function RetrievedInvoiceCard({ invoiceData }: { invoiceData: any }) {
             dueDate: invoiceData.due_date,
             notes: invoiceData.notes,
             createdAt: invoiceData.created_at,
+            businessProfile,
           })
         }}
         className="w-full rounded-lg bg-blue-600/20 border border-blue-500/30 py-2 text-xs font-semibold text-blue-400 hover:bg-blue-600/30 transition active:scale-[0.98]">
@@ -374,6 +381,7 @@ function MessageBubble({
   onEdit: (msgId: string) => void
   onGenerateInvoice: (msgId: string) => void
   onSkipInvoice: (msgId: string) => void
+  businessProfile?: any
 }) {
   const isUser = msg.role === 'user'
   const hasPending = !!msg.pendingTx && !!msg.pendingStatus
@@ -431,7 +439,7 @@ function MessageBubble({
         {/* Retrieved Invoice Card */}
         {msg.metadata?.invoiceData && (
           <div className="w-full">
-            <RetrievedInvoiceCard invoiceData={msg.metadata.invoiceData} />
+            <RetrievedInvoiceCard invoiceData={msg.metadata.invoiceData} businessProfile={businessProfile} />
           </div>
         )}
 
@@ -463,7 +471,7 @@ function TypingIndicator() {
 }
 
 /* ── Main ChatWindow ── */
-export default function ChatWindow({ initialMessages, userName }: Props) {
+export default function ChatWindow({ initialMessages, userName, businessProfile }: Props) {
   const [messages, setMessages] = useState<Message[]>(
     initialMessages.map((m) => {
       const meta = (m.metadata as Message['metadata']) ?? null
@@ -612,6 +620,7 @@ export default function ChatWindow({ initialMessages, userName }: Props) {
         description: txData?.description,
         category: txData?.category,
         transactionDate: txData?.date,
+        businessProfile,
       })
 
       // Mark as done
@@ -734,7 +743,7 @@ export default function ChatWindow({ initialMessages, userName }: Props) {
             </div>
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-white">
-                Hey {userName.split(' ')[0]}! I&apos;m your AccountAI
+                Hey {userName.split(' ')[0]}! I&apos;m your FintraBooks
               </h2>
               <p className="text-sm text-gray-500 max-w-xs">
                 Tell me about any money you spent or received and I&apos;ll record it automatically.
@@ -763,6 +772,7 @@ export default function ChatWindow({ initialMessages, userName }: Props) {
             onEdit={handleEdit}
             onGenerateInvoice={handleGenerateInvoice}
             onSkipInvoice={handleSkipInvoice}
+            businessProfile={businessProfile}
           />
         ))}
 
