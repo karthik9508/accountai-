@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getChatHistory, getMonthlySummary, getBalance } from '@/lib/transactions'
-import { signOutAction } from '@/app/actions/auth'
 import { clearChatAction } from '@/app/actions/chat'
 import ChatWindow from './_components/chat-window'
 import ClearChatButton from './_components/clear-chat-button'
@@ -97,17 +96,6 @@ export default async function ChatPage() {
               <p className="truncate text-xs font-medium text-white">{displayName}</p>
               <p className="truncate text-[10px] text-gray-600">{user.email}</p>
             </div>
-            <form action={signOutAction}>
-              <button
-                type="submit"
-                title="Sign out"
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-600 hover:bg-red-500/10 hover:text-red-400 transition"
-              >
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
-                </svg>
-              </button>
-            </form>
           </div>
         </div>
       </aside>

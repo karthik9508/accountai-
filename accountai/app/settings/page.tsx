@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { signOutAction } from '@/app/actions/auth'
 import SettingsForm from './_components/settings-form'
 
 export default async function SettingsPage() {
@@ -50,10 +51,26 @@ export default async function SettingsPage() {
           <p className="text-xs text-gray-500 mt-0.5">Manage your business profile and preferences</p>
         </header>
 
-        <div className="p-6 max-w-2xl">
+        <div className="p-6 max-w-2xl space-y-6">
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6">
             <h2 className="text-lg font-semibold text-white mb-6">Business Profile</h2>
             <SettingsForm initialData={businessProfile} />
+          </div>
+
+          <div className="rounded-2xl border border-red-500/10 bg-red-500/[0.02] p-6">
+            <h2 className="text-lg font-semibold text-white mb-2">Account Actions</h2>
+            <p className="text-xs text-gray-500 mb-6">Sign out of your account on this device.</p>
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="flex items-center justify-center gap-2 rounded-xl bg-red-600/20 border border-red-500/30 px-6 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-600/30 active:scale-[0.98]"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                </svg>
+                Sign out
+              </button>
+            </form>
           </div>
         </div>
       </main>
