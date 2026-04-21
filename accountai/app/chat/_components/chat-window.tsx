@@ -373,7 +373,7 @@ function RetrievedInvoiceCard({ invoiceData, businessProfile }: { invoiceData: a
 
 /* ── Message Bubble ── */
 function MessageBubble({
-  msg, onAccept, onDecline, onEdit, onGenerateInvoice, onSkipInvoice,
+  msg, onAccept, onDecline, onEdit, onGenerateInvoice, onSkipInvoice, businessProfile
 }: {
   msg: Message
   onAccept: (msgId: string, tx: PendingTx) => void

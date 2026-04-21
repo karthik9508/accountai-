@@ -124,7 +124,7 @@ export default async function ChatPage() {
               <p className="text-sm font-semibold text-white">FintraBooks Assistant</p>
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[10px] text-gray-500">AI-powered · Gemini 1.5 Flash</span>
+                <span className="text-[10px] text-gray-500">AI-powered</span>
               </div>
             </div>
           </div>
