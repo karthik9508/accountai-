@@ -7,6 +7,7 @@ import {
   getBalance,
 } from '@/lib/transactions'
 import { getAllCustomersWithStats } from '@/lib/invoices'
+import { RecentTransactionsTable } from './_components/recent-transactions-table'
 
 export default async function ReportsPage() {
   const supabase = await createClient()
@@ -142,66 +143,7 @@ export default async function ReportsPage() {
           </div>
 
           {/* Recent Transactions Table */}
-          <div className="rounded-2xl border border-white/5 bg-white/[0.03] overflow-hidden">
-            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-white">Recent Transactions</h2>
-              <a href="/chat" className="text-xs text-emerald-500 hover:text-emerald-400 transition">
-                + Add via chat →
-              </a>
-            </div>
-            {recent.length === 0 ? (
-              <div className="px-5 py-8 text-center">
-                <p className="text-sm text-gray-600">No transactions yet.</p>
-                <a href="/chat" className="mt-2 inline-block text-xs text-emerald-500 hover:text-emerald-400">
-                  Start recording in Chat →
-                </a>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-gray-600 border-b border-white/5">
-                      <th className="text-left px-5 py-3 font-medium">Date</th>
-                      <th className="text-left px-5 py-3 font-medium">Description</th>
-                      <th className="text-left px-5 py-3 font-medium">Category</th>
-                      <th className="text-left px-5 py-3 font-medium">Type</th>
-                      <th className="text-right px-5 py-3 font-medium">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {recent.map((tx, i) => (
-                      <tr
-                        key={tx.id}
-                        className={`border-b border-white/5 hover:bg-white/[0.02] transition ${i % 2 === 0 ? '' : 'bg-white/[0.01]'}`}
-                      >
-                        <td className="px-5 py-3 text-gray-500">
-                          {new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                        </td>
-                        <td className="px-5 py-3 text-gray-300 max-w-[160px] truncate">{tx.description ?? '—'}</td>
-                        <td className="px-5 py-3">
-                          <span className="rounded-full bg-white/5 px-2 py-0.5 text-gray-400">{tx.category}</span>
-                        </td>
-                        <td className="px-5 py-3">
-                          <span className={`rounded-full px-2 py-0.5 font-semibold ${
-                            tx.type === 'income'
-                              ? 'bg-emerald-500/10 text-emerald-400'
-                              : 'bg-red-500/10 text-red-400'
-                          }`}>
-                            {tx.type}
-                          </span>
-                        </td>
-                        <td className={`px-5 py-3 text-right font-semibold ${
-                          tx.type === 'income' ? 'text-emerald-400' : 'text-red-400'
-                        }`}>
-                          {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <RecentTransactionsTable initialRecent={recent} />
 
           {/* Customer Balances */}
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] overflow-hidden">

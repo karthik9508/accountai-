@@ -56,6 +56,8 @@ export async function POST(req: NextRequest) {
         description: aiResult.transaction.description,
         date: aiResult.transaction.date,
         customer_name: aiResult.transaction.customer_name ?? null,
+        payment_status: aiResult.transaction.payment_status ?? 'paid',
+        paid_amount: aiResult.transaction.paid_amount ?? null,
       }
       finalReply = `I parsed this transaction — please review and confirm:\n\n${aiResult.reply}`
     }

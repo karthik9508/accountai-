@@ -8,6 +8,8 @@ export interface Transaction {
   category: string
   description: string | null
   customer_name: string | null
+  payment_status: 'paid' | 'unpaid' | 'partial'
+  paid_amount: number | null
   date: string
   created_at: string
 }
@@ -46,6 +48,8 @@ export async function insertTransaction(
     description: string
     date: string
     customer_name?: string
+    payment_status?: 'paid' | 'unpaid' | 'partial'
+    paid_amount?: number | null
   }
 ): Promise<Transaction | null> {
   const supabase = await createClient()
@@ -78,6 +82,27 @@ export async function updateTransactionAmount(
     return false
   }
   return true
+}
+
+export async function updateTransaction(
+  userId: string,
+  transactionId: string,
+  updates: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>
+): Promise<Transaction | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('transactions')
+    .update(updates)
+    .eq('id', transactionId)
+    .eq('user_id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('updateTransaction error:', error)
+    return null
+  }
+  return data
 }
 
 

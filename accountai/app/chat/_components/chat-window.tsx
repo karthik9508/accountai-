@@ -9,8 +9,9 @@ interface PendingTx {
   type: 'income' | 'expense'
   category: string
   description: string
-  date: string
   customer_name?: string | null
+  payment_status?: 'paid' | 'unpaid' | 'partial'
+  paid_amount?: number | null
 }
 
 interface Message {
@@ -24,8 +25,9 @@ interface Message {
       amount: number
       type: 'income' | 'expense'
       category: string
-      description: string
       date: string
+      payment_status?: 'paid' | 'unpaid' | 'partial'
+      paid_amount?: number | null
     } | null
     pendingTransaction?: PendingTx | null
     invoiceData?: any | null
@@ -90,8 +92,28 @@ function TransactionCard({ tx }: { tx: PendingTx & { id?: string } }) {
         </span>
       </div>
       <div className="space-y-1 text-gray-400">
-        <div className="flex justify-between"><span className="text-gray-600">Category</span><span>{tx.category}</span></div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Category</span>
+          <div className="flex items-center gap-2">
+            <span>{tx.category}</span>
+            {(tx.category === 'Sales' || tx.category === 'Purchase') && tx.payment_status && (
+              <span className={`rounded px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider ${
+                tx.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-400' :
+                tx.payment_status === 'partial' ? 'bg-amber-500/20 text-amber-400' :
+                'bg-red-500/20 text-red-400'
+              }`}>
+                {tx.payment_status}
+              </span>
+            )}
+          </div>
+        </div>
         <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+        {tx.payment_status === 'partial' && tx.paid_amount != null && (
+          <>
+            <div className="flex justify-between"><span className="text-gray-600">Paid Amount</span><span className="text-emerald-400 font-medium">{fmt(tx.paid_amount)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Outstanding</span><span className="text-amber-400 font-medium">{fmt(tx.amount - tx.paid_amount)}</span></div>
+          </>
+        )}
         {tx.description && (
           <div className="flex justify-between"><span className="text-gray-600">Note</span><span className="max-w-[140px] truncate text-right">{tx.description}</span></div>
         )}
@@ -120,7 +142,23 @@ function PendingTransactionCard({
           <span>✅</span> Transaction Saved
         </div>
         <div className="text-gray-400 space-y-0.5">
-          <div>{tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)} · {tx.category}</div>
+          <div className="flex items-center gap-2">
+            {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)} · {tx.category}
+            {(tx.category === 'Sales' || tx.category === 'Purchase') && tx.payment_status && (
+              <span className={`rounded px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider ${
+                tx.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-400' :
+                tx.payment_status === 'partial' ? 'bg-amber-500/20 text-amber-400' :
+                'bg-red-500/20 text-red-400'
+              }`}>
+                {tx.payment_status}
+              </span>
+            )}
+          </div>
+          {tx.payment_status === 'partial' && tx.paid_amount != null && (
+            <div className="text-[11px] mt-1 text-gray-500">
+              Paid: <span className="text-emerald-400">{fmt(tx.paid_amount)}</span> | Outstanding: <span className="text-amber-400">{fmt(tx.amount - tx.paid_amount)}</span>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -188,6 +226,35 @@ function PendingTransactionCard({
           </select>
         </div>
 
+        {/* Payment Status (Only for Sales/Purchase) */}
+        {(editData.category === 'Sales' || editData.category === 'Purchase') && (
+          <>
+            <div>
+              <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Payment Status</label>
+              <select
+                value={editData.payment_status || 'paid'}
+                onChange={(e) => setEditData({ ...editData, payment_status: e.target.value as any })}
+                className="w-full rounded-lg border border-white/10 bg-[#111815] px-3 py-2 text-sm text-white outline-none focus:border-amber-500/40"
+              >
+                <option value="paid">Paid</option>
+                <option value="unpaid">Unpaid</option>
+                <option value="partial">Partial</option>
+              </select>
+            </div>
+            {editData.payment_status === 'partial' && (
+              <div>
+                <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Paid Amount (₹)</label>
+                <input
+                  type="number"
+                  value={editData.paid_amount || 0}
+                  onChange={(e) => setEditData({ ...editData, paid_amount: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/40"
+                />
+              </div>
+            )}
+          </>
+        )}
+
         {/* Description */}
         <div>
           <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Description</label>
@@ -246,8 +313,28 @@ function PendingTransactionCard({
         </span>
       </div>
       <div className="space-y-1 text-gray-400 mb-3">
-        <div className="flex justify-between"><span className="text-gray-600">Category</span><span>{tx.category}</span></div>
+        <div className="flex justify-between">
+          <span className="text-gray-600">Category</span>
+          <div className="flex items-center gap-2">
+            <span>{tx.category}</span>
+            {(tx.category === 'Sales' || tx.category === 'Purchase') && tx.payment_status && (
+              <span className={`rounded px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider ${
+                tx.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-400' :
+                tx.payment_status === 'partial' ? 'bg-amber-500/20 text-amber-400' :
+                'bg-red-500/20 text-red-400'
+              }`}>
+                {tx.payment_status}
+              </span>
+            )}
+          </div>
+        </div>
         <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+        {tx.payment_status === 'partial' && tx.paid_amount != null && (
+          <>
+            <div className="flex justify-between"><span className="text-gray-600">Paid Amount</span><span className="text-emerald-400 font-medium">{fmt(tx.paid_amount)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Outstanding</span><span className="text-amber-400 font-medium">{fmt(tx.amount - tx.paid_amount)}</span></div>
+          </>
+        )}
         {tx.description && (
           <div className="flex justify-between"><span className="text-gray-600">Note</span><span className="max-w-[140px] truncate text-right">{tx.description}</span></div>
         )}
@@ -635,6 +722,9 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
           id: crypto.randomUUID(),
           role: 'assistant' as const,
           content: data.reply ?? `📄 Invoice generated!`,
+          metadata: {
+            invoiceData: data.invoice,
+          },
           created_at: new Date().toISOString(),
         },
       ])

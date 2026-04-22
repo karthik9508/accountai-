@@ -48,12 +48,12 @@ export async function POST(req: NextRequest) {
 
     await saveChatMessage(user.id, 'assistant', reply, {
       intent: 'invoice_generated',
-      invoice,
+      invoiceData: { ...invoice, customer_name: customerName },
     })
 
     return NextResponse.json({
       success: true,
-      invoice,
+      invoice: { ...invoice, customer_name: customerName },
       reply,
     })
   } catch (error) {
