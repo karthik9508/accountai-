@@ -10,7 +10,7 @@ Response format:
 {"intent":"record_transaction"|"query_balance"|"query_report"|"query_customer_statement"|"query_outstanding"|"manage_invoice"|"general_question"|"unknown","transaction":{"amount":number,"type":"income"|"expense","category":"string","description":"string","date":"YYYY-MM-DD","customer_name":"string|null","payment_status":"paid"|"unpaid"|"partial","paid_amount":"number|null"}|null,"customer_name":"string|null","invoice_action":{"action":"get"|"edit"|"delete","invoice_number":"string|null","customer_name":"string|null","updates":{"amount":"number|null","status":"paid"|"unpaid"|"partial"|null,"due_date":"YYYY-MM-DD|null"}|null}|null,"reply":"string"}
 
 Rules:
-- record_transaction: user records spending/receiving money or business transactions
+- record_transaction: user records spending/receiving money or business transactions. If you see a --- Document Text --- block, you MUST extract the transaction details (amount, date, description, party) directly from the text provided in that block. Do NOT ask the user for details if they are present in the document text.
 - query_balance: user asks about balance/net worth
 - query_report: user asks for summary/report/breakdown
 - query_customer_statement: user asks for statement/ledger of a specific customer/party. Extract customer_name.
@@ -62,7 +62,11 @@ export interface GeminiResponse {
   reply: string
 }
 
-export async function parseUserMessage(userMessage: string): Promise<GeminiResponse> {
+export async function parseUserMessage(
+  userMessage: string,
+  imageBase64?: string,
+  mimeType?: string,
+): Promise<GeminiResponse> {
   // gemini-2.5-flash = current fast model (replaces deprecated 2.0-flash)
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
@@ -74,13 +78,27 @@ export async function parseUserMessage(userMessage: string): Promise<GeminiRespo
     },
   })
 
+  // Build content parts — text + optional image for multimodal processing
+  const parts: any[] = []
+
+  if (imageBase64 && mimeType) {
+    parts.push({
+      inlineData: {
+        mimeType: mimeType,
+        data: imageBase64,
+      },
+    })
+  }
+
+  parts.push({ text: userMessage })
+
   // Retry with exponential backoff for rate-limit (429) errors
   const MAX_RETRIES = 2
   let lastError: unknown
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const result = await model.generateContent(userMessage)
+      const result = await model.generateContent(parts)
       const text = result.response.text()
 
       try {
@@ -99,10 +117,10 @@ export async function parseUserMessage(userMessage: string): Promise<GeminiRespo
       lastError = error
       const errMsg = error instanceof Error ? error.message : String(error)
 
-      // Only retry on rate-limit errors
-      if ((errMsg.includes('429') || errMsg.includes('Too Many Requests') || errMsg.includes('quota')) && attempt < MAX_RETRIES) {
+      // Only retry on rate-limit or 503 high demand errors
+      if ((errMsg.includes('429') || errMsg.includes('Too Many Requests') || errMsg.includes('quota') || errMsg.includes('503') || errMsg.includes('high demand')) && attempt < MAX_RETRIES) {
         const waitMs = Math.min(1000 * Math.pow(2, attempt + 1), 10000) // 2s, 4s
-        console.warn(`Gemini rate-limited (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${waitMs}ms...`)
+        console.warn(`Gemini rate-limited/overloaded (attempt ${attempt + 1}/${MAX_RETRIES + 1}), retrying in ${waitMs}ms...`)
         await new Promise((resolve) => setTimeout(resolve, waitMs))
         continue
       }

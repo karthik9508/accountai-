@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@/lib/transactions'
 import { generateInvoicePDF } from '@/lib/invoice-pdf'
 
@@ -8,7 +9,8 @@ interface PendingTx {
   amount: number
   type: 'income' | 'expense'
   category: string
-  description: string
+  description?: string
+  date?: string
   customer_name?: string | null
   payment_status?: 'paid' | 'unpaid' | 'partial'
   paid_amount?: number | null
@@ -20,11 +22,15 @@ interface Message {
   content: string
   metadata?: {
     intent?: string
+    imageBase64?: string
+    mimeType?: string
+    hasAttachment?: boolean
     transaction?: {
       id: string
       amount: number
       type: 'income' | 'expense'
       category: string
+      description?: string
       date: string
       payment_status?: 'paid' | 'unpaid' | 'partial'
       paid_amount?: number | null
@@ -107,7 +113,7 @@ function TransactionCard({ tx }: { tx: PendingTx & { id?: string } }) {
             )}
           </div>
         </div>
-        <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+        {tx.date && <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>}
         {tx.payment_status === 'partial' && tx.paid_amount != null && (
           <>
             <div className="flex justify-between"><span className="text-gray-600">Paid Amount</span><span className="text-emerald-400 font-medium">{fmt(tx.paid_amount)}</span></div>
@@ -186,7 +192,7 @@ function PendingTransactionCard({
           <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Amount (₹)</label>
           <input
             type="number"
-            value={editData.amount}
+            value={editData.amount ?? ''}
             onChange={(e) => setEditData({ ...editData, amount: Number(e.target.value) })}
             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/40"
           />
@@ -246,7 +252,7 @@ function PendingTransactionCard({
                 <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Paid Amount (₹)</label>
                 <input
                   type="number"
-                  value={editData.paid_amount || 0}
+                  value={editData.paid_amount ?? ''}
                   onChange={(e) => setEditData({ ...editData, paid_amount: Number(e.target.value) })}
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/40"
                 />
@@ -260,7 +266,7 @@ function PendingTransactionCard({
           <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Description</label>
           <input
             type="text"
-            value={editData.description}
+            value={editData.description ?? ''}
             onChange={(e) => setEditData({ ...editData, description: e.target.value })}
             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/40"
           />
@@ -271,7 +277,7 @@ function PendingTransactionCard({
           <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Date</label>
           <input
             type="date"
-            value={editData.date}
+            value={editData.date ?? ''}
             onChange={(e) => setEditData({ ...editData, date: e.target.value })}
             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/40"
           />
@@ -328,7 +334,7 @@ function PendingTransactionCard({
             )}
           </div>
         </div>
-        <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>
+        {tx.date && <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>}
         {tx.payment_status === 'partial' && tx.paid_amount != null && (
           <>
             <div className="flex justify-between"><span className="text-gray-600">Paid Amount</span><span className="text-emerald-400 font-medium">{fmt(tx.paid_amount)}</span></div>
@@ -458,6 +464,27 @@ function RetrievedInvoiceCard({ invoiceData, businessProfile }: { invoiceData: a
   )
 }
 
+/* ── OCR Failed Card ── */
+function OcrFailedCard() {
+  return (
+    <div className="mt-2 rounded-xl border border-red-500/30 bg-red-500/5 p-4 text-sm w-full shadow-lg">
+      <div className="flex flex-col items-center justify-center text-center space-y-3">
+        <div className="text-3xl">📷❌</div>
+        <div className="text-red-400 font-medium">Text Detection Failed</div>
+        <p className="text-xs text-gray-400">
+          We couldn't read the receipt. Please try uploading a clearer image or type the transaction details manually.
+        </p>
+        <button 
+          onClick={() => document.getElementById('chat-file-input')?.click()}
+          className="mt-2 px-5 py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-600/30 transition text-xs font-semibold active:scale-[0.98]"
+        >
+          Re-upload Image
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /* ── Message Bubble ── */
 function MessageBubble({
   msg, onAccept, onDecline, onEdit, onGenerateInvoice, onSkipInvoice, businessProfile
@@ -473,68 +500,143 @@ function MessageBubble({
   const isUser = msg.role === 'user'
   const hasPending = !!msg.pendingTx && !!msg.pendingStatus
 
-  return (
-    <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-      {/* Avatar */}
-      <div className={`shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-        isUser ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-lg'
-      }`}>
-        {isUser ? '👤' : '🤖'}
-      </div>
+  const [expandedImage, setExpandedImage] = useState(false)
+  const hasImage = !!msg.metadata?.imageBase64
 
-      {/* Bubble */}
-      <div className={`max-w-[75%] space-y-1 ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
-        <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-          isUser
-            ? 'rounded-tr-sm bg-emerald-600 text-white'
-            : 'rounded-tl-sm bg-[#111815] text-gray-200 border border-white/5'
+  return (
+    <>
+      <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+        {/* Avatar */}
+        <div className={`shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+          isUser ? 'bg-emerald-600 text-white' : 'bg-gray-800 text-lg'
         }`}>
-          <p dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.content) }} />
+          {isUser ? '👤' : '🤖'}
         </div>
 
-        {/* Pending transaction card */}
-        {hasPending && (
-          <div className="w-full">
-            <PendingTransactionCard
-              tx={msg.pendingTx!}
-              status={msg.pendingStatus!}
-              onAccept={(editedTx) => onAccept(msg.id, editedTx)}
-              onDecline={() => onDecline(msg.id)}
-              onEdit={() => onEdit(msg.id)}
-            />
-          </div>
-        )}
+        {/* Bubble */}
+        <div className={`max-w-[75%] space-y-1 ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
+          {/* Image attachment — shown above text bubble for cleaner layout */}
+          {hasImage && (
+            <div
+              className={`relative group cursor-pointer overflow-hidden rounded-2xl border border-white/10 shadow-lg ${
+                isUser ? 'rounded-tr-sm' : 'rounded-tl-sm'
+              }`}
+              style={{ maxWidth: '260px' }}
+              onClick={() => setExpandedImage(true)}
+            >
+              <img
+                src={`data:${msg.metadata!.mimeType || 'image/jpeg'};base64,${msg.metadata!.imageBase64}`}
+                alt="Uploaded document"
+                className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/60 rounded-full p-2">
+                  <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </div>
+              </div>
+              {/* Image badge */}
+              <div className="absolute bottom-2 left-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-full px-2 py-0.5">
+                <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91M3.75 21h16.5a1.5 1.5 0 001.5-1.5V5.25a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v14.25a1.5 1.5 0 001.5 1.5z" />
+                </svg>
+                <span className="text-[9px] text-white/80 font-medium">Document</span>
+              </div>
+            </div>
+          )}
 
-        {/* Invoice prompt card */}
-        {msg.invoicePrompt && (
-          <div className="w-full">
-            <InvoicePromptCard
-              status={msg.invoicePrompt}
-              onGenerate={() => onGenerateInvoice(msg.id)}
-              onSkip={() => onSkipInvoice(msg.id)}
-            />
+          {/* Text bubble */}
+          <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+            isUser
+              ? `${hasImage ? 'rounded-tr-2xl' : 'rounded-tr-sm'} bg-emerald-600 text-white`
+              : 'rounded-tl-sm bg-[#111815] text-gray-200 border border-white/5'
+          }`}>
+            {hasImage && msg.content !== '📎 Attached Document' && (
+              <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-white/15">
+                <svg className="w-3.5 h-3.5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                </svg>
+                <span className="text-[10px] text-white/60 font-medium">Image + Message</span>
+              </div>
+            )}
+            <p dangerouslySetInnerHTML={{ __html: formatMarkdown(msg.content) }} />
           </div>
-        )}
 
-        {/* Already-saved transaction card (from history) */}
-        {!hasPending && msg.metadata?.transaction && (
-          <div className="w-full">
-            <TransactionCard tx={msg.metadata.transaction} />
-          </div>
-        )}
+          {/* OCR Failed card */}
+          {msg.metadata?.intent === 'ocr_failed' && (
+            <div className="w-full">
+              <OcrFailedCard />
+            </div>
+          )}
 
-        {/* Retrieved Invoice Card */}
-        {msg.metadata?.invoiceData && (
-          <div className="w-full">
-            <RetrievedInvoiceCard invoiceData={msg.metadata.invoiceData} businessProfile={businessProfile} />
-          </div>
-        )}
+          {/* Pending transaction card */}
+          {hasPending && (
+            <div className="w-full">
+              <PendingTransactionCard
+                tx={msg.pendingTx!}
+                status={msg.pendingStatus!}
+                onAccept={(editedTx) => onAccept(msg.id, editedTx)}
+                onDecline={() => onDecline(msg.id)}
+                onEdit={() => onEdit(msg.id)}
+              />
+            </div>
+          )}
 
-        <span className="text-[10px] text-gray-700">
-          {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-        </span>
+          {/* Invoice prompt card */}
+          {msg.invoicePrompt && (
+            <div className="w-full">
+              <InvoicePromptCard
+                status={msg.invoicePrompt}
+                onGenerate={() => onGenerateInvoice(msg.id)}
+                onSkip={() => onSkipInvoice(msg.id)}
+              />
+            </div>
+          )}
+
+          {/* Already-saved transaction card (from history) */}
+          {!hasPending && msg.metadata?.transaction && (
+            <div className="w-full">
+              <TransactionCard tx={msg.metadata.transaction} />
+            </div>
+          )}
+
+          {/* Retrieved Invoice Card */}
+          {msg.metadata?.invoiceData && (
+            <div className="w-full">
+              <RetrievedInvoiceCard invoiceData={msg.metadata.invoiceData} businessProfile={businessProfile} />
+            </div>
+          )}
+
+          <span className="text-[10px] text-gray-700">
+            {new Date(msg.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
       </div>
-    </div>
+
+      {/* Lightbox overlay for expanded image */}
+      {expandedImage && hasImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm cursor-pointer animate-fadeIn"
+          onClick={() => setExpandedImage(false)}
+        >
+          <div className="relative max-w-[90vw] max-h-[85vh] animate-scaleIn">
+            <img
+              src={`data:${msg.metadata!.mimeType || 'image/jpeg'};base64,${msg.metadata!.imageBase64}`}
+              alt="Expanded document"
+              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
+            />
+            <button
+              onClick={(e) => { e.stopPropagation(); setExpandedImage(false) }}
+              className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full bg-gray-800 text-white border border-white/20 hover:bg-gray-700 transition shadow-lg"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
@@ -559,6 +661,7 @@ function TypingIndicator() {
 
 /* ── Main ChatWindow ── */
 export default function ChatWindow({ initialMessages, userName, businessProfile }: Props) {
+  const router = useRouter()
   const [messages, setMessages] = useState<Message[]>(
     initialMessages.map((m) => {
       const meta = (m.metadata as Message['metadata']) ?? null
@@ -577,8 +680,22 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
   )
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Generate image preview URL when file is selected
+  useEffect(() => {
+    if (!selectedFile) {
+      setImagePreview(null)
+      return
+    }
+    const url = URL.createObjectURL(selectedFile)
+    setImagePreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [selectedFile])
 
   const scrollToBottom = useCallback(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -624,6 +741,7 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
         created_at: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, confirmMsg])
+      router.refresh()
     } catch {
       setMessages((prev) => prev.map((m) =>
         m.id === msgId ? { ...m, pendingStatus: 'pending' as const } : m
@@ -745,24 +863,45 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
   /* ── Send message ── */
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim()
-    if (!trimmed || loading) return
+    if ((!trimmed && !selectedFile) || loading) return
+
+    let imageBase64: string | undefined
+    let mimeType: string | undefined
+
+    if (selectedFile) {
+      try {
+        const base64Str = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.readAsDataURL(selectedFile)
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = error => reject(error)
+        })
+        imageBase64 = base64Str.split(',')[1]
+        mimeType = selectedFile.type
+      } catch (err) {
+        console.error('Failed to read file:', err)
+        return
+      }
+    }
 
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: trimmed,
+      content: trimmed || '📎 Attached Document',
+      metadata: imageBase64 ? { imageBase64, mimeType } : null,
       created_at: new Date().toISOString(),
     }
 
     setMessages((prev) => [...prev, userMsg])
     setInput('')
+    setSelectedFile(null)
     setLoading(true)
 
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed }),
+        body: JSON.stringify({ message: trimmed, imageBase64, mimeType }),
       })
 
       const data = await res.json()
@@ -797,6 +936,11 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
       }
 
       setMessages((prev) => [...prev, assistantMsg])
+
+      // If we modified an invoice/transaction directly via chat, refresh the sidebar
+      if (data.intent === 'manage_invoice') {
+        router.refresh()
+      }
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -811,7 +955,7 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
       setLoading(false)
       inputRef.current?.focus()
     }
-  }, [loading])
+  }, [loading, selectedFile])
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -819,6 +963,9 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
       sendMessage(input)
     }
   }
+
+  // Ensure loading state correctly tracks selectedFile
+  const canSend = (!loading && (input.trim().length > 0 || selectedFile !== null))
 
   const isEmpty = messages.length === 0
 
@@ -887,7 +1034,66 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
           </div>
         )}
 
+        {/* Image Preview */}
+        {selectedFile && (
+          <div className="mb-3 px-1 animate-slideUp">
+            <div className="relative inline-flex flex-col rounded-xl overflow-hidden border border-emerald-500/20 bg-emerald-500/5 shadow-lg shadow-emerald-500/5 max-w-[280px]">
+              {/* Image thumbnail */}
+              {imagePreview && (
+                <div className="relative w-full max-h-[180px] overflow-hidden">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                </div>
+              )}
+              {/* File info bar */}
+              <div className="flex items-center gap-2.5 px-3 py-2 bg-[#0a0f0d]">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15">
+                  <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91M3.75 21h16.5a1.5 1.5 0 001.5-1.5V5.25a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5v14.25a1.5 1.5 0 001.5 1.5z" />
+                  </svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-emerald-400 truncate">{selectedFile.name}</p>
+                  <p className="text-[10px] text-gray-500">
+                    {(selectedFile.size / 1024).toFixed(0)} KB · Ready to send
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedFile(null)}
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/5 text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-end gap-3">
+          <input 
+            id="chat-file-input"
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            ref={fileInputRef}
+            onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={loading}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/5 text-gray-400 transition hover:bg-white/10 hover:text-white active:scale-95 disabled:opacity-50"
+            title="Attach Receipt or Invoice"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+          </button>
           <textarea
             ref={inputRef}
             id="chat-input"
@@ -907,7 +1113,7 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
           <button
             id="chat-send"
             onClick={() => sendMessage(input)}
-            disabled={loading || input.trim().length === 0}
+            disabled={!canSend}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white transition hover:bg-emerald-500 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? (

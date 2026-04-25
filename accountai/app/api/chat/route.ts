@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { parseUserMessage } from '@/lib/gemini'
+import { extractTextFromImage } from '@/lib/vision'
 import {
   insertTransaction,
   saveChatMessage,
@@ -27,17 +28,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { message } = await req.json()
+    const { message, imageBase64, mimeType } = await req.json()
 
-    if (!message || typeof message !== 'string' || message.trim().length === 0) {
-      return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+    const finalMessage = message?.trim() || (imageBase64 ? 'Please extract the transaction details from this document.' : '')
+
+    if (!finalMessage) {
+      return NextResponse.json({ error: 'Message or document is required' }, { status: 400 })
     }
 
     // 2. Save user message to DB
-    await saveChatMessage(user.id, 'user', message.trim())
+    await saveChatMessage(user.id, 'user', finalMessage, imageBase64 ? { hasAttachment: true, imageBase64, mimeType } : undefined)
 
-    // 3. Parse with Gemini AI
-    const aiResult = await parseUserMessage(message.trim())
+    // 3. Process image: OCR for text extraction + Gemini multimodal for understanding
+    let promptForAI = finalMessage
+    if (imageBase64) {
+      try {
+        const extractedText = await extractTextFromImage(imageBase64)
+        if (extractedText && extractedText.trim().length > 0) {
+          console.log('OCR Extracted successfully, length:', extractedText.length)
+          promptForAI += `\n\n--- Document Text (OCR) ---\n${extractedText}\n--------------------------`
+        }
+      } catch (err) {
+        // OCR failed — continue with Gemini multimodal only (it can still read the image)
+        console.warn('Vision OCR failed, falling back to Gemini multimodal:', err instanceof Error ? err.message : err)
+      }
+    }
+
+    // 4. Parse with Gemini AI (OCR text + user message only, no raw image)
+    const aiResult = await parseUserMessage(promptForAI)
 
     let finalReply = aiResult.reply
     let transactionData = null
