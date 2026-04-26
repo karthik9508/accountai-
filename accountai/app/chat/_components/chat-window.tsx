@@ -698,12 +698,23 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
   }, [selectedFile])
 
   const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Use setTimeout to ensure DOM has updated before scrolling
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }, 50)
   }, [])
 
+  // Scroll on messages change or loading state change
   useEffect(() => {
     scrollToBottom()
   }, [messages, loading, scrollToBottom])
+
+  // Also scroll on initial mount to show latest messages
+  useEffect(() => {
+    setTimeout(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'auto' })
+    }, 100)
+  }, [])
 
   /* ── Accept handler ── */
   const handleAccept = useCallback(async (msgId: string, tx: PendingTx) => {
@@ -972,7 +983,7 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
   return (
     <div className="flex flex-1 flex-col min-h-0">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4 scroll-smooth">
+      <div className="flex-1 overflow-y-auto px-4 pt-5 pb-4 space-y-4 scroll-smooth">
         {isEmpty && (
           <div className="flex flex-col items-center justify-center h-full text-center gap-6 py-12">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 ring-1 ring-emerald-500/20 text-3xl">
@@ -1018,7 +1029,7 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
       </div>
 
       {/* Input bar */}
-      <div className="border-t border-white/5 bg-[#080c0a] px-4 py-3">
+      <div className="shrink-0 border-t border-white/5 bg-[#080c0a] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {!isEmpty && (
           <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-none">
             {['Show balance', 'Monthly report', 'Show expenses', 'Statement for...', 'Outstanding for...'].map((chip) => (
