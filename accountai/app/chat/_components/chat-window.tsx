@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import type { ChatMessage } from '@/lib/transactions'
 import { generateInvoicePDF } from '@/lib/invoice-pdf'
 
@@ -139,6 +139,8 @@ function PendingTransactionCard({
   onEdit: () => void
 }) {
   const [editData, setEditData] = useState<PendingTx>({ ...tx })
+  const [previewStatus, setPreviewStatus] = useState<'paid' | 'unpaid' | 'partial'>(tx.payment_status || 'paid')
+  const [previewPaidAmount, setPreviewPaidAmount] = useState<number | null>(tx.paid_amount ?? null)
 
   // Already resolved
   if (status === 'accepted') {
@@ -303,6 +305,13 @@ function PendingTransactionCard({
   }
 
   // status === 'pending' — show card with action buttons
+
+  const buildAcceptTx = (): PendingTx => ({
+    ...tx,
+    payment_status: previewStatus,
+    paid_amount: previewStatus === 'partial' ? previewPaidAmount : null,
+  })
+
   return (
     <div className="mt-2 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs">
       <div className="flex items-center gap-2 text-amber-400 font-semibold text-sm mb-2">
@@ -321,35 +330,68 @@ function PendingTransactionCard({
       <div className="space-y-1 text-gray-400 mb-3">
         <div className="flex justify-between">
           <span className="text-gray-600">Category</span>
-          <div className="flex items-center gap-2">
-            <span>{tx.category}</span>
-            {(tx.category === 'Sales' || tx.category === 'Purchase') && tx.payment_status && (
-              <span className={`rounded px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wider ${
-                tx.payment_status === 'paid' ? 'bg-emerald-500/20 text-emerald-400' :
-                tx.payment_status === 'partial' ? 'bg-amber-500/20 text-amber-400' :
-                'bg-red-500/20 text-red-400'
-              }`}>
-                {tx.payment_status}
-              </span>
-            )}
-          </div>
+          <span>{tx.category}</span>
         </div>
-        {tx.date && <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>}
-        {tx.payment_status === 'partial' && tx.paid_amount != null && (
-          <>
-            <div className="flex justify-between"><span className="text-gray-600">Paid Amount</span><span className="text-emerald-400 font-medium">{fmt(tx.paid_amount)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-600">Outstanding</span><span className="text-amber-400 font-medium">{fmt(tx.amount - tx.paid_amount)}</span></div>
-          </>
+        {tx.customer_name && (
+          <div className="flex justify-between"><span className="text-gray-600">Customer</span><span className="text-gray-300 font-medium">{tx.customer_name}</span></div>
         )}
+        {tx.date && <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>}
         {tx.description && (
           <div className="flex justify-between"><span className="text-gray-600">Note</span><span className="max-w-[140px] truncate text-right">{tx.description}</span></div>
         )}
       </div>
 
+      {/* Payment Status Toggle */}
+      <div className="mb-3">
+        <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1.5">Payment Status</label>
+        <div className="flex gap-1.5">
+          {(['paid', 'unpaid', 'partial'] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setPreviewStatus(s)
+                if (s !== 'partial') setPreviewPaidAmount(null)
+              }}
+              className={`flex-1 rounded-lg py-2 text-[11px] font-bold uppercase tracking-wider transition ${
+                previewStatus === s
+                  ? s === 'paid'
+                    ? 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40'
+                    : s === 'unpaid'
+                    ? 'bg-red-500/20 text-red-400 ring-1 ring-red-500/40'
+                    : 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40'
+                  : 'bg-white/5 text-gray-500 hover:bg-white/10'
+              }`}
+            >
+              {s === 'paid' ? '✅ Paid' : s === 'unpaid' ? '🔴 Unpaid' : '🟡 Partial'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Partial: show paid amount input */}
+      {previewStatus === 'partial' && (
+        <div className="mb-3">
+          <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Paid Amount (₹)</label>
+          <input
+            type="number"
+            value={previewPaidAmount ?? ''}
+            onChange={(e) => setPreviewPaidAmount(Number(e.target.value))}
+            placeholder="Enter amount paid so far"
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/40 placeholder-gray-600"
+          />
+          {previewPaidAmount != null && previewPaidAmount > 0 && (
+            <div className="flex justify-between mt-1.5 text-[11px]">
+              <span className="text-gray-500">Outstanding</span>
+              <span className="text-amber-400 font-semibold">{fmt(tx.amount - previewPaidAmount)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="flex gap-2">
         <button
-          onClick={() => onAccept(tx)}
+          onClick={() => onAccept(buildAcceptTx())}
           className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white hover:bg-emerald-500 transition active:scale-[0.98]"
         >
           ✅ Accept
@@ -423,43 +465,84 @@ function InvoicePromptCard({
 /* ── Retrieved Invoice Card ── */
 function RetrievedInvoiceCard({ invoiceData, businessProfile }: { invoiceData: any, businessProfile?: any }) {
   return (
-    <div className="mt-2 rounded-xl border border-white/10 bg-white/5 p-3 text-xs">
-      <div className="flex items-center justify-between mb-2">
-        <span className="font-bold text-base text-blue-400">
-          {invoiceData.invoice_number}
-        </span>
-        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-          invoiceData.status === 'paid' ? 'bg-emerald-500/20 text-emerald-400' :
-          invoiceData.status === 'partial' ? 'bg-amber-500/20 text-amber-400' :
-          'bg-red-500/20 text-red-400'
+    <div className="mt-3 rounded-xl border border-white/10 bg-gradient-to-b from-white/5 to-[#080c0a] overflow-hidden shadow-lg animate-fadeIn">
+      {/* Header */}
+      <div className="bg-white/5 px-4 py-3 flex items-center justify-between border-b border-white/10">
+        <div className="flex items-center gap-2.5">
+          <span className="text-xl drop-shadow-md">📄</span>
+          <span className="font-bold text-white tracking-wider">{invoiceData.invoice_number}</span>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-[9px] uppercase font-bold tracking-wider ${
+          invoiceData.status === 'paid' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+          invoiceData.status === 'partial' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+          'bg-red-500/20 text-red-400 border border-red-500/30'
         }`}>
-          {invoiceData.status.toUpperCase()}
+          {invoiceData.status}
         </span>
       </div>
-      <div className="space-y-1 text-gray-400 mb-3">
-        <div className="flex justify-between"><span className="text-gray-600">Customer</span><span className="font-medium text-gray-300">{invoiceData.customer_name}</span></div>
-        <div className="flex justify-between"><span className="text-gray-600">Amount</span><span>{fmt(invoiceData.amount)}</span></div>
-        <div className="flex justify-between"><span className="text-gray-600">Total</span><span className="font-medium text-gray-300">{fmt(invoiceData.total_amount)}</span></div>
-        <div className="flex justify-between"><span className="text-gray-600">Due</span><span>{invoiceData.due_date ? new Date(invoiceData.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'On receipt'}</span></div>
+
+      {/* Table format */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <tbody className="divide-y divide-white/5">
+            <tr className="hover:bg-white/[0.02] transition">
+              <td className="px-4 py-2.5 text-gray-500 font-medium w-1/3">Billed To</td>
+              <td className="px-4 py-2.5 text-gray-200 font-semibold">{invoiceData.customer_name}</td>
+            </tr>
+            <tr className="hover:bg-white/[0.02] transition">
+              <td className="px-4 py-2.5 text-gray-500 font-medium">Issue Date</td>
+              <td className="px-4 py-2.5 text-gray-300">
+                {new Date(invoiceData.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </td>
+            </tr>
+            <tr className="hover:bg-white/[0.02] transition">
+              <td className="px-4 py-2.5 text-gray-500 font-medium">Due Date</td>
+              <td className="px-4 py-2.5 text-gray-300">
+                {invoiceData.due_date ? new Date(invoiceData.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'On receipt'}
+              </td>
+            </tr>
+            <tr className="hover:bg-white/[0.02] transition bg-white/[0.01]">
+              <td className="px-4 py-2.5 text-gray-500 font-medium">Subtotal</td>
+              <td className="px-4 py-2.5 text-gray-300">{fmt(invoiceData.amount)}</td>
+            </tr>
+            <tr className="hover:bg-white/[0.02] transition bg-white/[0.01]">
+              <td className="px-4 py-2.5 text-gray-500 font-medium">Tax ({invoiceData.tax_rate}%)</td>
+              <td className="px-4 py-2.5 text-gray-300">{fmt(invoiceData.tax_amount)}</td>
+            </tr>
+            <tr className="bg-emerald-500/5">
+              <td className="px-4 py-3 text-emerald-500/80 font-bold uppercase tracking-wider text-[10px]">Grand Total</td>
+              <td className="px-4 py-3 text-emerald-400 font-bold text-sm">{fmt(invoiceData.total_amount)}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <button 
-        onClick={() => {
-          generateInvoicePDF({
-            invoiceNumber: invoiceData.invoice_number,
-            customerName: invoiceData.customer_name,
-            amount: invoiceData.amount,
-            taxRate: invoiceData.tax_rate,
-            taxAmount: invoiceData.tax_amount,
-            totalAmount: invoiceData.total_amount,
-            dueDate: invoiceData.due_date,
-            notes: invoiceData.notes,
-            createdAt: invoiceData.created_at,
-            businessProfile,
-          })
-        }}
-        className="w-full rounded-lg bg-blue-600/20 border border-blue-500/30 py-2 text-xs font-semibold text-blue-400 hover:bg-blue-600/30 transition active:scale-[0.98]">
-        ⬇️ Download PDF
-      </button>
+
+      <div className="p-3 border-t border-white/5 bg-black/20">
+        <button 
+          onClick={() => {
+            generateInvoicePDF({
+              invoiceNumber: invoiceData.invoice_number,
+              customerName: invoiceData.customer_name,
+              amount: invoiceData.amount,
+              taxRate: invoiceData.tax_rate,
+              taxAmount: invoiceData.tax_amount,
+              totalAmount: invoiceData.total_amount,
+              dueDate: invoiceData.due_date,
+              notes: invoiceData.notes,
+              createdAt: invoiceData.created_at,
+              status: invoiceData.status,
+              businessProfile,
+              templateStyle: 'modern' // using the new modern template default
+            })
+          }}
+          className="w-full flex items-center justify-center gap-2 rounded-lg bg-white/5 border border-white/10 py-2.5 text-xs font-semibold text-gray-300 hover:bg-white/10 hover:text-white transition active:scale-[0.98]"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Download PDF
+        </button>
+      </div>
     </div>
   )
 }
@@ -662,6 +745,7 @@ function TypingIndicator() {
 /* ── Main ChatWindow ── */
 export default function ChatWindow({ initialMessages, userName, businessProfile }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [messages, setMessages] = useState<Message[]>(
     initialMessages.map((m) => {
       const meta = (m.metadata as Message['metadata']) ?? null
@@ -696,6 +780,14 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
     setImagePreview(url)
     return () => URL.revokeObjectURL(url)
   }, [selectedFile])
+
+  useEffect(() => {
+    const prompt = searchParams.get('prompt')
+    if (prompt) {
+      setInput(prompt)
+      inputRef.current?.focus()
+    }
+  }, [searchParams])
 
   const scrollToBottom = useCallback(() => {
     // Use setTimeout to ensure DOM has updated before scrolling
@@ -833,6 +925,7 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
         dueDate: data.invoice.due_date,
         notes: data.invoice.notes,
         createdAt: data.invoice.created_at,
+        status: data.invoice.status,
         description: txData?.description,
         category: txData?.category,
         transactionDate: txData?.date,

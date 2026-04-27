@@ -94,15 +94,35 @@ export async function createInvoice(
   // Find or create customer
   const customer = await findOrCreateCustomer(userId, data.customerName)
 
+  const { data: sourceTransaction } = await supabase
+    .from('transactions')
+    .select('payment_status, paid_amount')
+    .eq('id', data.transactionId)
+    .eq('user_id', userId)
+    .limit(1)
+    .single()
+
   // Generate invoice number
   const invoiceNumber = await getNextInvoiceNumber(userId)
 
   const taxRate = data.taxRate ?? 0
   const taxAmount = Math.round(data.amount * (taxRate / 100) * 100) / 100
   const totalAmount = data.amount + taxAmount
+  const paymentStatus =
+    sourceTransaction?.payment_status === 'paid' || sourceTransaction?.payment_status === 'partial'
+      ? sourceTransaction.payment_status
+      : 'unpaid'
 
   // Default due date: 30 days from now
   const dueDate = data.dueDate ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  let notes = data.notes?.trim() || ''
+  if (paymentStatus === 'partial' && sourceTransaction?.paid_amount != null) {
+    const paidAmount = Number(sourceTransaction.paid_amount)
+    const outstandingAmount = Math.max(totalAmount - paidAmount, 0)
+    const partialNote = `Partial payment received: Rs. ${paidAmount.toFixed(2)} | Outstanding: Rs. ${outstandingAmount.toFixed(2)}`
+    notes = notes ? `${notes}\n${partialNote}` : partialNote
+  }
 
   const { data: invoice, error } = await supabase
     .from('invoices')
@@ -115,9 +135,9 @@ export async function createInvoice(
       tax_rate: taxRate,
       tax_amount: taxAmount,
       total_amount: totalAmount,
-      status: 'unpaid',
+      status: paymentStatus,
       due_date: dueDate,
-      notes: data.notes ?? null,
+      notes: notes || null,
     })
     .select()
     .single()
@@ -191,20 +211,20 @@ export async function getCustomerStatement(
   const supabase = await createClient()
   const name = customerName.trim()
 
-  // Get all transactions for this customer
+  // Get all transactions for this customer (fuzzy match)
   const { data: transactions } = await supabase
     .from('transactions')
     .select('date, description, type, amount, category')
     .eq('user_id', userId)
-    .ilike('customer_name', name)
+    .ilike('customer_name', `%${name}%`)
     .order('date', { ascending: false })
 
-  // Get customer and their invoices
+  // Get customer and their invoices (fuzzy match)
   const { data: customer } = await supabase
     .from('customers')
     .select('id')
     .eq('user_id', userId)
-    .ilike('name', name)
+    .ilike('name', `%${name}%`)
     .limit(1)
     .single()
 
@@ -267,7 +287,7 @@ export async function getCustomerOutstanding(
     .from('customers')
     .select('id')
     .eq('user_id', userId)
-    .ilike('name', name)
+    .ilike('name', `%${name}%`)
     .limit(1)
     .single()
 
@@ -345,7 +365,7 @@ export async function getInvoiceByNumber(
 
 export async function updateInvoice(
   userId: string,
-  invoiceId: string,
+  invoiceNumber: string,
   updates: {
     amount?: number | null
     status?: 'paid' | 'unpaid' | 'partial' | null
@@ -354,12 +374,13 @@ export async function updateInvoice(
 ): Promise<Invoice | null> {
   const supabase = await createClient()
 
-  // First fetch the existing invoice to recalculate tax and total if amount changes
+  // First fetch the existing invoice by invoice_number (not by id)
   const { data: existing } = await supabase
     .from('invoices')
     .select('*')
-    .eq('id', invoiceId)
     .eq('user_id', userId)
+    .ilike('invoice_number', invoiceNumber.trim())
+    .limit(1)
     .single()
 
   if (!existing) return null
@@ -382,10 +403,12 @@ export async function updateInvoice(
     dbUpdates.due_date = updates.due_date
   }
 
+  if (Object.keys(dbUpdates).length === 0) return { ...existing, customer_name: undefined }
+
   const { data: updated, error } = await supabase
     .from('invoices')
     .update(dbUpdates)
-    .eq('id', invoiceId)
+    .eq('id', existing.id)
     .eq('user_id', userId)
     .select(`
       *,

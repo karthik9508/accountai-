@@ -6,7 +6,9 @@ import { findOrCreateCustomer } from '@/lib/invoices'
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -14,9 +16,8 @@ export async function POST(req: NextRequest) {
 
     const { transaction, action } = await req.json()
 
-    // action = 'accept' | 'decline'
     if (action === 'decline') {
-      await saveChatMessage(user.id, 'assistant', '❌ Transaction discarded.', {
+      await saveChatMessage(user.id, 'assistant', 'Transaction discarded.', {
         intent: 'transaction_declined',
       })
       return NextResponse.json({ success: true, action: 'declined' })
@@ -30,6 +31,8 @@ export async function POST(req: NextRequest) {
         description: transaction.description,
         date: transaction.date,
         customer_name: transaction.customer_name ?? undefined,
+        payment_status: transaction.payment_status ?? 'paid',
+        paid_amount: transaction.paid_amount ?? null,
       })
 
       if (!saved) {
@@ -39,7 +42,6 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      // Auto-create customer record if customer_name is present
       if (transaction.customer_name) {
         await findOrCreateCustomer(user.id, transaction.customer_name)
       }
@@ -51,11 +53,16 @@ export async function POST(req: NextRequest) {
           maximumFractionDigits: 0,
         }).format(n)
 
-      const confirmReply = `✅ Transaction saved!\n${saved.type === 'income' ? '+' : '-'}${fmt(saved.amount)} · ${saved.category}`
+      let confirmReply = `Transaction saved.\n${saved.type === 'income' ? '+' : '-'}${fmt(saved.amount)} · ${saved.category}`
 
-      // Check if this is a Sales transaction with a customer → prompt invoice
-      const isSales = saved.category === 'Sales' && !!transaction.customer_name
-      const promptInvoice = isSales
+      if ((saved.category === 'Sales' || saved.category === 'Purchase') && saved.payment_status) {
+        confirmReply += `\nStatus: ${saved.payment_status}`
+        if (saved.payment_status === 'partial' && saved.paid_amount != null) {
+          confirmReply += ` (paid ${fmt(saved.paid_amount)})`
+        }
+      }
+
+      const promptInvoice = saved.category === 'Sales' && !!transaction.customer_name
 
       await saveChatMessage(user.id, 'assistant', confirmReply, {
         intent: 'transaction_confirmed',

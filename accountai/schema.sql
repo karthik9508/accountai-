@@ -17,6 +17,25 @@ create table if not exists public.transactions (
   created_at    timestamptz default now()
 );
 
+-- Sync older existing databases with the current transactions schema.
+alter table public.transactions
+  add column if not exists payment_status text,
+  add column if not exists paid_amount numeric(12, 2);
+
+alter table public.transactions
+  alter column payment_status set default 'paid';
+
+update public.transactions
+set payment_status = 'paid'
+where payment_status is null;
+
+alter table public.transactions
+  drop constraint if exists transactions_payment_status_check;
+
+alter table public.transactions
+  add constraint transactions_payment_status_check
+  check (payment_status in ('paid', 'unpaid', 'partial'));
+
 -- Row Level Security for transactions
 alter table public.transactions enable row level security;
 

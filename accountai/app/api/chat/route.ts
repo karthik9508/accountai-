@@ -9,6 +9,7 @@ import {
   getMonthlySummary,
   getCategoryBreakdown,
   updateTransactionAmount,
+  updateTransaction,
 } from '@/lib/transactions'
 import {
   getCustomerStatement,
@@ -16,6 +17,7 @@ import {
   getInvoiceByNumber,
   updateInvoice,
   deleteInvoice,
+  getInvoicesByCustomer,
 } from '@/lib/invoices'
 
 export async function POST(req: NextRequest) {
@@ -199,7 +201,6 @@ export async function POST(req: NextRequest) {
           }
         }
         else if (action.action === 'delete') {
-          // Fetch first to see if it exists
           const existing = await getInvoiceByNumber(user.id, invNumber)
           if (!existing) {
             finalReply = `❌ Could not find invoice **${invNumber}**.`
@@ -210,6 +211,105 @@ export async function POST(req: NextRequest) {
             } else {
               finalReply = `❌ Failed to delete invoice **${invNumber}**.`
             }
+          }
+        }
+      }
+    }
+
+    // ── Payment received against customer invoices ──
+    else if (aiResult.intent === 'payment_received') {
+      const customerName = aiResult.customer_name
+      const paymentAmount = aiResult.transaction?.amount
+
+      if (!customerName || !paymentAmount) {
+        finalReply = '❓ Please specify both the customer name and amount. Example: "received ₹5000 from Ravi"'
+      } else {
+        // Record the payment as an income transaction
+        const tx = await insertTransaction(user.id, {
+          amount: paymentAmount,
+          type: 'income',
+          category: 'Sales',
+          description: `Payment received from ${customerName}`,
+          date: aiResult.transaction?.date || new Date().toISOString().split('T')[0],
+          customer_name: customerName,
+          payment_status: 'paid',
+        })
+
+        // Try to mark oldest unpaid invoices as paid
+        const invoices = await getInvoicesByCustomer(user.id, customerName)
+        const unpaidInvoices = invoices.filter(inv => inv.status !== 'paid').sort((a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+
+        let remaining = paymentAmount
+        let invoicesUpdated = 0
+
+        for (const inv of unpaidInvoices) {
+          if (remaining <= 0) break
+
+          if (remaining >= Number(inv.total_amount)) {
+            await updateInvoice(user.id, inv.invoice_number, { status: 'paid' })
+            remaining -= Number(inv.total_amount)
+            invoicesUpdated++
+          } else {
+            await updateInvoice(user.id, inv.invoice_number, { status: 'partial' })
+            remaining = 0
+            invoicesUpdated++
+          }
+        }
+
+        const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+
+        if (tx) {
+          transactionData = tx
+          finalReply = `✅ Payment of **${fmt(paymentAmount)}** from **${customerName}** recorded!`
+          if (invoicesUpdated > 0) {
+            finalReply += ` ${invoicesUpdated} invoice(s) updated automatically. 📄`
+          }
+        } else {
+          finalReply = `❌ Failed to record payment. Please try again.`
+        }
+      }
+    }
+
+    // ── Update existing transaction (sales update, return, etc.) ──
+    else if (aiResult.intent === 'update_transaction') {
+      const customerName = aiResult.customer_name
+      const updateData = aiResult.transaction
+
+      if (!customerName) {
+        finalReply = '❓ Please specify which customer\'s transaction to update.'
+      } else if (!updateData) {
+        finalReply = '❓ Please specify what to update. Example: "update Ravi sale to 8000" or "return from Ravi 2000"'
+      } else {
+        // Find the most recent matching transaction for this customer
+        const supabaseClient = await createClient()
+        const { data: recentTx } = await supabaseClient
+          .from('transactions')
+          .select('*')
+          .eq('user_id', user.id)
+          .ilike('customer_name', `%${customerName.trim()}%`)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (!recentTx) {
+          finalReply = `❌ No transaction found for **${customerName}**. Please check the name.`
+        } else {
+          const updates: any = {}
+          if (updateData.amount) updates.amount = updateData.amount
+          if (updateData.payment_status) updates.payment_status = updateData.payment_status
+          if (updateData.paid_amount !== undefined) updates.paid_amount = updateData.paid_amount
+          if (updateData.description) updates.description = updateData.description
+
+          const updated = await updateTransaction(user.id, recentTx.id, updates)
+          const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+
+          if (updated) {
+            transactionData = updated
+            finalReply = `✅ Transaction for **${customerName}** updated to **${fmt(updated.amount)}** (${updated.payment_status}). 📝`
+          } else {
+            finalReply = `❌ Failed to update transaction for **${customerName}**.`
           }
         }
       }

@@ -6,7 +6,9 @@ import { saveChatMessage } from '@/lib/transactions'
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -44,7 +46,8 @@ export async function POST(req: NextRequest) {
         maximumFractionDigits: 0,
       }).format(n)
 
-    const reply = `📄 Invoice **${invoice.invoice_number}** generated!\n\nCustomer: **${customerName}**\nAmount: ${fmt(invoice.amount)}\nTax: ${fmt(invoice.tax_amount)}\nTotal: **${fmt(invoice.total_amount)}**\nDue: ${invoice.due_date}\nStatus: Unpaid`
+    const statusLabel = invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)
+    const reply = `Invoice **${invoice.invoice_number}** generated!\n\nCustomer: **${customerName}**\nAmount: ${fmt(invoice.amount)}\nTax: ${fmt(invoice.tax_amount)}\nTotal: **${fmt(invoice.total_amount)}**\nDue: ${invoice.due_date}\nStatus: ${statusLabel}`
 
     await saveChatMessage(user.id, 'assistant', reply, {
       intent: 'invoice_generated',

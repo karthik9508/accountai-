@@ -5,13 +5,16 @@ import { clearChatAction } from '@/app/actions/chat'
 import ChatWindow from './_components/chat-window'
 import ClearChatButton from './_components/clear-chat-button'
 
+// Force dynamic rendering — always fetch fresh chat data
+export const dynamic = 'force-dynamic'
+
 export default async function ChatPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const [messages, summary, balance] = await Promise.all([
-    getChatHistory(user.id, 50),
+    getChatHistory(user.id, 100),
     getMonthlySummary(user.id),
     getBalance(user.id),
   ])

@@ -37,33 +37,106 @@ export interface CategoryBreakdown {
   percentage: number
 }
 
+type TransactionWriteData = {
+  amount: number
+  type: 'income' | 'expense'
+  category: string
+  description: string
+  date: string
+  customer_name?: string
+  payment_status?: 'paid' | 'unpaid' | 'partial'
+  paid_amount?: number | null
+}
+
+type TransactionUpdateData = Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>
+
+function extractMissingColumn(error: { code?: string; message?: string } | null): string | null {
+  if (!error || error.code !== 'PGRST204' || !error.message) {
+    return null
+  }
+
+  const match = error.message.match(/'([^']+)' column/)
+  return match?.[1] ?? null
+}
+
+function omitColumn<T extends Record<string, unknown>>(data: T, column: string): T {
+  const cloned = { ...data }
+  delete cloned[column]
+  return cloned
+}
+
+async function insertTransactionWithFallback(
+  userId: string,
+  data: TransactionWriteData
+): Promise<Transaction | null> {
+  const supabase = await createClient()
+  let payload: Record<string, unknown> = { user_id: userId, ...data }
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data: row, error } = await supabase
+      .from('transactions')
+      .insert(payload)
+      .select()
+      .single()
+
+    if (!error) {
+      return row
+    }
+
+    const missingColumn = extractMissingColumn(error)
+    if (!missingColumn || !(missingColumn in payload)) {
+      console.error('insertTransaction error:', error)
+      return null
+    }
+
+    console.warn(`insertTransaction fallback: retrying without unsupported column "${missingColumn}"`)
+    payload = omitColumn(payload, missingColumn)
+  }
+
+  return null
+}
+
+async function updateTransactionWithFallback(
+  userId: string,
+  transactionId: string,
+  updates: TransactionUpdateData
+): Promise<Transaction | null> {
+  const supabase = await createClient()
+  let payload: Record<string, unknown> = { ...updates }
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await supabase
+      .from('transactions')
+      .update(payload)
+      .eq('id', transactionId)
+      .eq('user_id', userId)
+      .select()
+      .single()
+
+    if (!error) {
+      return data
+    }
+
+    const missingColumn = extractMissingColumn(error)
+    if (!missingColumn || !(missingColumn in payload)) {
+      console.error('updateTransaction error:', error)
+      return null
+    }
+
+    console.warn(`updateTransaction fallback: retrying without unsupported column "${missingColumn}"`)
+    payload = omitColumn(payload, missingColumn)
+  }
+
+  return null
+}
+
 // ── Transactions ──────────────────────────────────────────
 
 export async function insertTransaction(
   userId: string,
-  data: {
-    amount: number
-    type: 'income' | 'expense'
-    category: string
-    description: string
-    date: string
-    customer_name?: string
-    payment_status?: 'paid' | 'unpaid' | 'partial'
-    paid_amount?: number | null
-  }
+  data: TransactionWriteData
 ): Promise<Transaction | null> {
-  const supabase = await createClient()
-  const { data: row, error } = await supabase
-    .from('transactions')
-    .insert({ user_id: userId, ...data })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('insertTransaction error:', error)
-    return null
-  }
-  return row
+  return insertTransactionWithFallback(userId, data)
 }
 export async function updateTransactionAmount(
   userId: string,
@@ -87,22 +160,9 @@ export async function updateTransactionAmount(
 export async function updateTransaction(
   userId: string,
   transactionId: string,
-  updates: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>
+  updates: TransactionUpdateData
 ): Promise<Transaction | null> {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('transactions')
-    .update(updates)
-    .eq('id', transactionId)
-    .eq('user_id', userId)
-    .select()
-    .single()
-
-  if (error) {
-    console.error('updateTransaction error:', error)
-    return null
-  }
-  return data
+  return updateTransactionWithFallback(userId, transactionId, updates)
 }
 
 
