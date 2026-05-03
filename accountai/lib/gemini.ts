@@ -10,6 +10,7 @@ Response format:
 {"intent":"record_transaction"|"query_balance"|"query_report"|"query_customer_statement"|"query_outstanding"|"manage_invoice"|"payment_received"|"update_transaction"|"general_question"|"unknown","transaction":{"amount":number,"type":"income"|"expense","category":"string","description":"string","date":"YYYY-MM-DD","customer_name":"string|null","payment_status":"paid"|"unpaid"|"partial","paid_amount":"number|null"}|null,"customer_name":"string|null","invoice_action":{"action":"get"|"edit"|"delete","invoice_number":"string|null","customer_name":"string|null","updates":{"amount":"number|null","status":"paid"|"unpaid"|"partial"|null,"due_date":"YYYY-MM-DD|null"}|null}|null,"reply":"string"}
 
 Rules:
+- If a "Recent Conversation Context" section is provided, use it to resolve follow-up references like "same customer", "mark that paid", "change it", or "show that invoice". Prefer the current user message when there is a conflict.
 - record_transaction: user records spending/receiving money or NEW business transactions. If you see a --- Document Text --- block, you MUST extract the transaction details (amount, date, description, party) directly from the text provided in that block. Do NOT ask the user for details if they are present in the document text.
 - payment_received: user says they RECEIVED PAYMENT from a customer for an EXISTING sale/invoice. Keywords: "received from", "payment from", "collected from", "got payment from". Record as income transaction and include customer_name. This is NOT a new sale — it is money coming in against an existing outstanding balance.
 - update_transaction: user wants to UPDATE an existing transaction — change amount, mark status, process a RETURN/refund. Keywords: "update sale", "change amount", "return from", "refund to", "credit note", "modify transaction". Include the new amount and/or payment_status in the transaction object.
@@ -68,8 +69,18 @@ export interface GeminiResponse {
   reply: string
 }
 
+type GeminiContentPart =
+  | { text: string }
+  | {
+      inlineData: {
+        mimeType: string
+        data: string
+      }
+    }
+
 export async function parseUserMessage(
   userMessage: string,
+  conversationContext?: string,
   imageBase64?: string,
   mimeType?: string,
 ): Promise<GeminiResponse> {
@@ -85,7 +96,7 @@ export async function parseUserMessage(
   })
 
   // Build content parts — text + optional image for multimodal processing
-  const parts: any[] = []
+  const parts: GeminiContentPart[] = []
 
   if (imageBase64 && mimeType) {
     parts.push({
@@ -96,7 +107,15 @@ export async function parseUserMessage(
     })
   }
 
-  parts.push({ text: userMessage })
+  const promptSections = []
+
+  if (conversationContext?.trim()) {
+    promptSections.push(`Recent Conversation Context:\n${conversationContext.trim()}`)
+  }
+
+  promptSections.push(`Current User Message:\n${userMessage}`)
+
+  parts.push({ text: promptSections.join('\n\n') })
 
   // Retry with exponential backoff for rate-limit (429) errors
   const MAX_RETRIES = 2

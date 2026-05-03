@@ -297,11 +297,11 @@ export async function getChatHistory(
     .from('chat_messages')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(limit)
 
   if (error) return []
-  return data ?? []
+  return (data ?? []).reverse()
 }
 
 export async function clearChatHistory(userId: string): Promise<void> {

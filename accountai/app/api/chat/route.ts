@@ -5,11 +5,13 @@ import { extractTextFromImage } from '@/lib/vision'
 import {
   insertTransaction,
   saveChatMessage,
+  getChatHistory,
   getBalance,
   getMonthlySummary,
   getCategoryBreakdown,
   updateTransactionAmount,
   updateTransaction,
+  type ChatMessage,
 } from '@/lib/transactions'
 import {
   getCustomerStatement,
@@ -19,6 +21,21 @@ import {
   deleteInvoice,
   getInvoicesByCustomer,
 } from '@/lib/invoices'
+
+function buildConversationContext(messages: ChatMessage[]): string {
+  return messages
+    .slice(-10)
+    .map((message) => {
+      const metadata = message.metadata ?? {}
+      const intent =
+        typeof metadata.intent === 'string' && metadata.intent.length > 0
+          ? ` | intent=${metadata.intent}`
+          : ''
+
+      return `${message.role.toUpperCase()}: ${message.content}${intent}`
+    })
+    .join('\n')
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,14 +55,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Message or document is required' }, { status: 400 })
     }
 
-    // 2. Save user message to DB
-    await saveChatMessage(user.id, 'user', finalMessage, imageBase64 ? { hasAttachment: true, imageBase64, mimeType } : undefined)
+    const recentMessages = await getChatHistory(user.id, 10)
 
-    // 3. Process image: OCR for text extraction + Gemini multimodal for understanding
+    // 2. Process image: OCR for text extraction + Gemini multimodal for understanding
     let promptForAI = finalMessage
+    let extractedText: string | null = null
     if (imageBase64) {
       try {
-        const extractedText = await extractTextFromImage(imageBase64)
+        extractedText = await extractTextFromImage(imageBase64)
         if (extractedText && extractedText.trim().length > 0) {
           console.log('OCR Extracted successfully, length:', extractedText.length)
           promptForAI += `\n\n--- Document Text (OCR) ---\n${extractedText}\n--------------------------`
@@ -56,8 +73,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Parse with Gemini AI (OCR text + user message only, no raw image)
-    const aiResult = await parseUserMessage(promptForAI)
+    await saveChatMessage(user.id, 'user', finalMessage, {
+      hasAttachment: Boolean(imageBase64),
+      imageBase64: imageBase64 ?? null,
+      mimeType: mimeType ?? null,
+      extractedText,
+      originalMessage: message ?? '',
+    })
+
+    // 3. Parse with Gemini AI using recent conversation context
+    const conversationContext = buildConversationContext(recentMessages)
+    const aiResult = await parseUserMessage(promptForAI, conversationContext)
 
     let finalReply = aiResult.reply
     let transactionData = null
@@ -296,7 +322,12 @@ export async function POST(req: NextRequest) {
         if (!recentTx) {
           finalReply = `❌ No transaction found for **${customerName}**. Please check the name.`
         } else {
-          const updates: any = {}
+          const updates: {
+            amount?: number
+            payment_status?: 'paid' | 'unpaid' | 'partial'
+            paid_amount?: number | null
+            description?: string
+          } = {}
           if (updateData.amount) updates.amount = updateData.amount
           if (updateData.payment_status) updates.payment_status = updateData.payment_status
           if (updateData.paid_amount !== undefined) updates.paid_amount = updateData.paid_amount
@@ -318,6 +349,8 @@ export async function POST(req: NextRequest) {
     // 5. Save assistant reply to DB
     await saveChatMessage(user.id, 'assistant', finalReply, {
       intent: aiResult.intent,
+      aiResult,
+      conversationContextUsed: Boolean(conversationContext),
       transaction: transactionData,
       pendingTransaction,
       statementData,

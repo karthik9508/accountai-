@@ -17,6 +17,10 @@ export async function POST(req: NextRequest) {
     const { transaction, action } = await req.json()
 
     if (action === 'decline') {
+      await saveChatMessage(user.id, 'user', 'Declined the pending transaction suggestion.', {
+        intent: 'transaction_decline_request',
+        transaction: transaction ?? null,
+      })
       await saveChatMessage(user.id, 'assistant', 'Transaction discarded.', {
         intent: 'transaction_declined',
       })
@@ -24,6 +28,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'accept' && transaction) {
+      await saveChatMessage(user.id, 'user', 'Confirmed the pending transaction suggestion.', {
+        intent: 'transaction_accept_request',
+        transaction,
+      })
+
       const saved = await insertTransaction(user.id, {
         amount: transaction.amount,
         type: transaction.type,
