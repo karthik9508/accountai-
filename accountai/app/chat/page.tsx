@@ -67,7 +67,7 @@ export default async function ChatPage() {
           {[
             { href: '/chat', label: 'Chat', icon: '💬', active: true },
             { href: '/reports', label: 'Reports', icon: '📊', active: false },
-            { href: '/dashboard', label: 'Dashboard', icon: '◈', active: false },
+            { href: '/transactions', label: 'Transactions', icon: '📋', active: false },
             { href: '/settings', label: 'Settings', icon: '⚙', active: false },
           ].map((item) => (
             <a
@@ -139,6 +139,7 @@ export default async function ChatPage() {
         {[
           { href: '/chat', label: 'Chat', icon: '💬', active: true },
           { href: '/reports', label: 'Reports', icon: '📊', active: false },
+          { href: '/transactions', label: 'Txns', icon: '📋', active: false },
           { href: '/settings', label: 'Settings', icon: '⚙', active: false },
         ].map((item) => (
           <a

@@ -784,7 +784,7 @@ export async function getReportAnalytics(
     selectedRange,
     selectedPeriodSummary: buildMonthlySummary(filteredTransactions),
     balance: roundCurrency(balance),
-    recentTransactions: filteredTransactions.slice(0, 15) as Transaction[],
+    recentTransactions: filteredTransactions.slice(0, 5) as Transaction[],
     expenseBreakdown: buildCategoryBreakdown(filteredTransactions, 'expense', 6),
     incomeBreakdown: buildCategoryBreakdown(filteredTransactions, 'income', 6),
     profitAndLoss: buildProfitAndLoss(filteredTransactions),

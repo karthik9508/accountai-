@@ -165,6 +165,18 @@ export async function updateTransaction(
   return updateTransactionWithFallback(userId, transactionId, updates)
 }
 
+export async function getAllTransactions(userId: string): Promise<Transaction[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (error) return []
+  return (data ?? []) as Transaction[]
+}
 
 export async function getBalance(userId: string): Promise<number> {
   const supabase = await createClient()

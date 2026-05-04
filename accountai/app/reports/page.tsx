@@ -13,6 +13,7 @@ import { RecentTransactionsTable } from './_components/recent-transactions-table
 const navigationItems = [
   { href: '/chat', label: 'Chat', shortLabel: 'CH', active: false },
   { href: '/reports', label: 'Reports', shortLabel: 'RP', active: true },
+  { href: '/transactions', label: 'Transactions', shortLabel: 'TX', active: false },
   { href: '/settings', label: 'Settings', shortLabel: 'ST', active: false },
 ]
 
@@ -453,6 +454,13 @@ export default async function ReportsPage({
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <Link
+                href="/transactions"
+                className="inline-flex items-center gap-2 rounded-xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-2.5 text-sm font-medium text-cyan-400 transition-all hover:border-cyan-500/40 hover:bg-cyan-500/15 hover:shadow-lg hover:shadow-cyan-500/5"
+              >
+                <span className="text-base">📋</span>
+                View Transactions
+              </Link>
               <Link
                 href={`/chat?prompt=${insightPrompt}`}
                 className="group inline-flex items-center gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-400 transition-all hover:border-emerald-500/40 hover:bg-emerald-500/15 hover:shadow-lg hover:shadow-emerald-500/5"
