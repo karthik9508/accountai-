@@ -24,6 +24,7 @@ export async function updateTransactionAction(
   const result = await updateTransaction(user.id, transactionId, updates)
   if (!result) return { error: 'Failed to update transaction' }
 
+  revalidatePath('/transactions')
   revalidatePath('/reports')
   return { success: true, transaction: result }
 }
@@ -33,14 +34,31 @@ export async function deleteTransactionAction(transactionId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Unauthorized' }
 
+  // First, delete any invoices linked to this transaction (FK constraint)
+  const { error: invoiceError } = await supabase
+    .from('invoices')
+    .delete()
+    .eq('transaction_id', transactionId)
+    .eq('user_id', user.id)
+
+  if (invoiceError) {
+    console.error('Failed to delete linked invoices:', invoiceError)
+    return { error: 'Failed to delete linked invoices' }
+  }
+
+  // Now delete the transaction itself
   const { error } = await supabase
     .from('transactions')
     .delete()
     .eq('id', transactionId)
     .eq('user_id', user.id)
 
-  if (error) return { error: 'Failed to delete transaction' }
+  if (error) {
+    console.error('Failed to delete transaction:', error)
+    return { error: 'Failed to delete transaction' }
+  }
 
+  revalidatePath('/transactions')
   revalidatePath('/reports')
   return { success: true }
 }

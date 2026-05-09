@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { signOutAction } from '@/app/actions/auth'
 import SettingsForm from './_components/settings-form'
+import TemplateSelector from './_components/template-selector'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -15,6 +16,9 @@ export default async function SettingsPage() {
     business_contact: meta.business_contact || '',
     business_email: meta.business_email || user.email || '',
   }
+
+  const invoiceTemplate = (meta.invoice_template as 'modern' | 'minimal' | 'bold') || 'modern'
+
 
   return (
     <div className="flex min-h-screen bg-[#080c0a]">
@@ -51,6 +55,15 @@ export default async function SettingsPage() {
           <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6">
             <h2 className="text-lg font-semibold text-white mb-6">Business Profile</h2>
             <SettingsForm initialData={businessProfile} />
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-white/[0.03] p-6">
+            <div className="flex items-center gap-3 mb-1">
+              <span className="text-lg">📄</span>
+              <h2 className="text-lg font-semibold text-white">Invoice Templates</h2>
+            </div>
+            <p className="text-xs text-gray-500 mb-6 ml-8">Choose the default style for your generated invoices.</p>
+            <TemplateSelector currentTemplate={invoiceTemplate} />
           </div>
 
           <div className="rounded-2xl border border-red-500/10 bg-red-500/[0.02] p-6">

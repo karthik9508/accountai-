@@ -57,6 +57,7 @@ interface Props {
     business_contact?: string
     business_email?: string
   }
+  invoiceTemplate?: 'modern' | 'minimal' | 'bold'
 }
 
 const SUGGESTIONS = [
@@ -82,6 +83,60 @@ function formatMarkdown(text: string) {
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+
+/**
+ * Compress an image file client-side using Canvas.
+ * Resizes to fit within maxDim and outputs as JPEG at the given quality.
+ * Typically reduces a 10MB mobile photo to ~200-400KB.
+ */
+async function compressImage(
+  file: File,
+  maxDim = 1600,
+  quality = 0.7
+): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+
+      let { width, height } = img
+
+      // Scale down if larger than maxDim
+      if (width > maxDim || height > maxDim) {
+        const ratio = Math.min(maxDim / width, maxDim / height)
+        width = Math.round(width * ratio)
+        height = Math.round(height * ratio)
+      }
+
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('Canvas context unavailable'))
+        return
+      }
+
+      ctx.drawImage(img, 0, 0, width, height)
+
+      // Output as JPEG for best compression (even if input was PNG)
+      const dataUrl = canvas.toDataURL('image/jpeg', quality)
+      const base64 = dataUrl.split(',')[1]
+
+      resolve({ base64, mimeType: 'image/jpeg' })
+    }
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to load image'))
+    }
+
+    img.src = url
+  })
+}
 
 /* ── Confirmed transaction card (already saved) ── */
 function TransactionCard({ tx }: { tx: PendingTx & { id?: string } }) {
@@ -463,7 +518,7 @@ function InvoicePromptCard({
 }
 
 /* ── Retrieved Invoice Card ── */
-function RetrievedInvoiceCard({ invoiceData, businessProfile }: { invoiceData: any, businessProfile?: any }) {
+function RetrievedInvoiceCard({ invoiceData, businessProfile, invoiceTemplate = 'modern' }: { invoiceData: any, businessProfile?: any, invoiceTemplate?: 'modern' | 'minimal' | 'bold' }) {
   return (
     <div className="mt-3 rounded-xl border border-white/10 bg-gradient-to-b from-white/5 to-[#080c0a] overflow-hidden shadow-lg animate-fadeIn">
       {/* Header */}
@@ -532,7 +587,7 @@ function RetrievedInvoiceCard({ invoiceData, businessProfile }: { invoiceData: a
               createdAt: invoiceData.created_at,
               status: invoiceData.status,
               businessProfile,
-              templateStyle: 'modern' // using the new modern template default
+              templateStyle: invoiceTemplate
             })
           }}
           className="w-full flex items-center justify-center gap-2 rounded-lg bg-white/5 border border-white/10 py-2.5 text-xs font-semibold text-gray-300 hover:bg-white/10 hover:text-white transition active:scale-[0.98]"
@@ -570,7 +625,7 @@ function OcrFailedCard() {
 
 /* ── Message Bubble ── */
 function MessageBubble({
-  msg, onAccept, onDecline, onEdit, onGenerateInvoice, onSkipInvoice, businessProfile
+  msg, onAccept, onDecline, onEdit, onGenerateInvoice, onSkipInvoice, businessProfile, invoiceTemplate
 }: {
   msg: Message
   onAccept: (msgId: string, tx: PendingTx) => void
@@ -579,6 +634,7 @@ function MessageBubble({
   onGenerateInvoice: (msgId: string) => void
   onSkipInvoice: (msgId: string) => void
   businessProfile?: any
+  invoiceTemplate?: 'modern' | 'minimal' | 'bold'
 }) {
   const isUser = msg.role === 'user'
   const hasPending = !!msg.pendingTx && !!msg.pendingStatus
@@ -688,7 +744,7 @@ function MessageBubble({
           {/* Retrieved Invoice Card */}
           {msg.metadata?.invoiceData && (
             <div className="w-full">
-              <RetrievedInvoiceCard invoiceData={msg.metadata.invoiceData} businessProfile={businessProfile} />
+              <RetrievedInvoiceCard invoiceData={msg.metadata.invoiceData} businessProfile={businessProfile} invoiceTemplate={invoiceTemplate} />
             </div>
           )}
 
@@ -743,7 +799,7 @@ function TypingIndicator() {
 }
 
 /* ── Main ChatWindow ── */
-export default function ChatWindow({ initialMessages, userName, businessProfile }: Props) {
+export default function ChatWindow({ initialMessages, userName, businessProfile, invoiceTemplate = 'modern' }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [messages, setMessages] = useState<Message[]>(
@@ -930,6 +986,7 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
         category: txData?.category,
         transactionDate: txData?.date,
         businessProfile,
+        templateStyle: invoiceTemplate,
       })
 
       // Mark as done
@@ -974,16 +1031,21 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
 
     if (selectedFile) {
       try {
-        const base64Str = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader()
-          reader.readAsDataURL(selectedFile)
-          reader.onload = () => resolve(reader.result as string)
-          reader.onerror = error => reject(error)
-        })
-        imageBase64 = base64Str.split(',')[1]
-        mimeType = selectedFile.type
+        // Compress image client-side (mobile cameras capture 5-15MB photos)
+        const compressed = await compressImage(selectedFile, 1600, 0.7)
+        imageBase64 = compressed.base64
+        mimeType = compressed.mimeType
       } catch (err) {
-        console.error('Failed to read file:', err)
+        console.error('Failed to process image:', err)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: 'assistant' as const,
+            content: '⚠️ Failed to process image. Please try a smaller file or a different image.',
+            created_at: new Date().toISOString(),
+          },
+        ])
         return
       }
     }
@@ -1045,13 +1107,17 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
       if (data.intent === 'manage_invoice') {
         router.refresh()
       }
-    } catch {
+    } catch (err) {
+      const isAbort = err instanceof DOMException && err.name === 'AbortError'
+      const errorContent = isAbort
+        ? '⚠️ Request timed out. The image may be too large — try a smaller or clearer photo.'
+        : '⚠️ Network error. Please check your connection and try again.'
       setMessages((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           role: 'assistant' as const,
-          content: '⚠️ Network error. Please check your connection and try again.',
+          content: errorContent,
           created_at: new Date().toISOString(),
         },
       ])
@@ -1114,6 +1180,7 @@ export default function ChatWindow({ initialMessages, userName, businessProfile 
             onGenerateInvoice={handleGenerateInvoice}
             onSkipInvoice={handleSkipInvoice}
             businessProfile={businessProfile}
+            invoiceTemplate={invoiceTemplate}
           />
         ))}
 

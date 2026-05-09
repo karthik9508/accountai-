@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+// Allow large image payloads (mobile camera photos can be 5-15MB)
+export const maxDuration = 60 // seconds
+export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { parseUserMessage } from '@/lib/gemini'
 import { extractTextFromImage } from '@/lib/vision'
@@ -82,8 +86,9 @@ export async function POST(req: NextRequest) {
     })
 
     // 3. Parse with Gemini AI using recent conversation context
+    //    Pass the image to Gemini for multimodal understanding (works even if OCR failed)
     const conversationContext = buildConversationContext(recentMessages)
-    const aiResult = await parseUserMessage(promptForAI, conversationContext)
+    const aiResult = await parseUserMessage(promptForAI, conversationContext, imageBase64, mimeType)
 
     let finalReply = aiResult.reply
     let transactionData = null

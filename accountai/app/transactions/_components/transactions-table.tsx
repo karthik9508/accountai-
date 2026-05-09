@@ -90,10 +90,16 @@ export default function TransactionsTable({ transactions: initial }: { transacti
     setDeletingId(id)
     try {
       const result = await deleteTransactionAction(id)
+      if (result.error) {
+        alert(`Failed to delete: ${result.error}`)
+        return
+      }
       if (result.success) {
         setTransactions(prev => prev.filter(tx => tx.id !== id))
         router.refresh()
       }
+    } catch (err) {
+      alert('Network error — please try again.')
     } finally { setDeletingId(null) }
   }, [router])
 

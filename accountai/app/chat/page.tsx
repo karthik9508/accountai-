@@ -28,6 +28,8 @@ export default async function ChatPage() {
     business_email: user.user_metadata?.business_email,
   }
 
+  const invoiceTemplate = (user.user_metadata?.invoice_template as 'modern' | 'minimal' | 'bold') || 'modern'
+
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
 
@@ -131,6 +133,7 @@ export default async function ChatPage() {
           initialMessages={messages}
           userName={displayName}
           businessProfile={businessProfile}
+          invoiceTemplate={invoiceTemplate}
         />
       </main>
 

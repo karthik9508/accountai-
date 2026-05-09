@@ -84,6 +84,8 @@ export async function parseUserMessage(
   imageBase64?: string,
   mimeType?: string,
 ): Promise<GeminiResponse> {
+  const hasImage = Boolean(imageBase64 && mimeType)
+
   // gemini-2.5-flash = current fast model (replaces deprecated 2.0-flash)
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
@@ -91,7 +93,8 @@ export async function parseUserMessage(
     generationConfig: {
       responseMimeType: 'application/json',
       temperature: 0.2,
-      maxOutputTokens: 512,
+      // Images (invoices/receipts) need more output space for full JSON extraction
+      maxOutputTokens: hasImage ? 1024 : 512,
     },
   })
 

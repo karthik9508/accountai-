@@ -38,3 +38,22 @@ export async function updateBusinessProfile(
 
   return { error: null, message: 'Business details updated successfully!' }
 }
+
+export async function updateInvoiceTemplate(
+  template: 'modern' | 'minimal' | 'bold'
+): Promise<SettingsState> {
+  const supabase = await createClient()
+
+  const { error } = await supabase.auth.updateUser({
+    data: { invoice_template: template },
+  })
+
+  if (error) {
+    return { error: error.message, message: null }
+  }
+
+  revalidatePath('/settings', 'page')
+  revalidatePath('/chat', 'page')
+
+  return { error: null, message: 'Template updated successfully!' }
+}
