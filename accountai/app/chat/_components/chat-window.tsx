@@ -14,6 +14,8 @@ interface PendingTx {
   customer_name?: string | null
   payment_status?: 'paid' | 'unpaid' | 'partial'
   paid_amount?: number | null
+  bill_number?: string | null
+  items?: { item_name: string; quantity: number; unit?: string; rate: number; gst_rate?: number }[] | null
 }
 
 interface Message {
@@ -178,6 +180,20 @@ function TransactionCard({ tx }: { tx: PendingTx & { id?: string } }) {
         {tx.description && (
           <div className="flex justify-between"><span className="text-gray-600">Note</span><span className="max-w-[140px] truncate text-right">{tx.description}</span></div>
         )}
+        {(tx.category === 'Sales' || tx.category === 'Purchase') && tx.bill_number && (
+          <div className="flex justify-between"><span className="text-gray-600">Bill No.</span><span className="text-blue-400 font-medium">{tx.bill_number}</span></div>
+        )}
+        {tx.items && tx.items.length > 0 && (
+          <div className="mt-1 pt-1 border-t border-white/5">
+            <span className="text-gray-600 text-[10px] uppercase">Items:</span>
+            {tx.items.map((item, idx) => (
+              <div key={idx} className="flex justify-between text-[10px] mt-0.5">
+                <span className="text-gray-400">{item.item_name} ({item.quantity} {item.unit ?? 'pcs'})</span>
+                <span className="text-gray-300">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(item.quantity * item.rate)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -217,6 +233,11 @@ function PendingTransactionCard({
               </span>
             )}
           </div>
+          {(tx.category === 'Sales' || tx.category === 'Purchase') && tx.bill_number && (
+            <div className="text-[11px] mt-1 text-gray-500">
+              Bill No: <span className="text-blue-400">{tx.bill_number}</span>
+            </div>
+          )}
           {tx.payment_status === 'partial' && tx.paid_amount != null && (
             <div className="text-[11px] mt-1 text-gray-500">
               Paid: <span className="text-emerald-400">{fmt(tx.paid_amount)}</span> | Outstanding: <span className="text-amber-400">{fmt(tx.amount - tx.paid_amount)}</span>
@@ -329,6 +350,20 @@ function PendingTransactionCard({
           />
         </div>
 
+        {/* Bill Number (only for Sales/Purchase) */}
+        {(editData.category === 'Sales' || editData.category === 'Purchase') && (
+          <div>
+            <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Bill Number</label>
+            <input
+              type="text"
+              value={editData.bill_number ?? ''}
+              onChange={(e) => setEditData({ ...editData, bill_number: e.target.value || null })}
+              placeholder="e.g. 1234 (optional)"
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-amber-500/40 placeholder-gray-600"
+            />
+          </div>
+        )}
+
         {/* Date */}
         <div>
           <label className="text-[10px] text-gray-500 uppercase tracking-wider block mb-1">Date</label>
@@ -393,6 +428,9 @@ function PendingTransactionCard({
         {tx.date && <div className="flex justify-between"><span className="text-gray-600">Date</span><span>{new Date(tx.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span></div>}
         {tx.description && (
           <div className="flex justify-between"><span className="text-gray-600">Note</span><span className="max-w-[140px] truncate text-right">{tx.description}</span></div>
+        )}
+        {(tx.category === 'Sales' || tx.category === 'Purchase') && tx.bill_number && (
+          <div className="flex justify-between"><span className="text-gray-600">Bill No.</span><span className="text-blue-400 font-medium">{tx.bill_number}</span></div>
         )}
       </div>
 

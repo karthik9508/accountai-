@@ -13,6 +13,7 @@ type ReportTransactionRow = Pick<
   | 'customer_name'
   | 'payment_status'
   | 'paid_amount'
+  | 'bill_number'
   | 'date'
   | 'created_at'
 >

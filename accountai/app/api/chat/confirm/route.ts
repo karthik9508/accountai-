@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { insertTransaction, saveChatMessage } from '@/lib/transactions'
+import { insertTransaction, saveChatMessage, addTransactionItem, syncTransactionFromItems } from '@/lib/transactions'
 import { findOrCreateCustomer } from '@/lib/invoices'
+import { findOrCreateProduct } from '@/lib/transactions'
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
         customer_name: transaction.customer_name ?? undefined,
         payment_status: transaction.payment_status ?? 'paid',
         paid_amount: transaction.paid_amount ?? null,
+        bill_number: transaction.bill_number ?? null,
       })
 
       if (!saved) {
@@ -53,6 +55,29 @@ export async function POST(req: NextRequest) {
 
       if (transaction.customer_name) {
         await findOrCreateCustomer(user.id, transaction.customer_name)
+      }
+
+      // Insert line items if provided by the AI
+      if (transaction.items && Array.isArray(transaction.items) && transaction.items.length > 0) {
+        for (const item of transaction.items) {
+          await addTransactionItem(saved.id, {
+            item_name: item.item_name,
+            quantity: item.quantity ?? 1,
+            unit: item.unit ?? 'pcs',
+            rate: item.rate,
+            gst_rate: item.gst_rate ?? 0,
+          })
+
+          // Auto-create product in catalog
+          await findOrCreateProduct(user.id, item.item_name, {
+            unit: item.unit ?? 'pcs',
+            unit_price: item.rate,
+            gst_rate: item.gst_rate ?? 0,
+          })
+        }
+
+        // Sync parent transaction amount/gst from items
+        await syncTransactionFromItems(user.id, saved.id)
       }
 
       const fmt = (n: number) =>

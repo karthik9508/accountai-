@@ -10,6 +10,9 @@ export interface Transaction {
   customer_name: string | null
   payment_status: 'paid' | 'unpaid' | 'partial'
   paid_amount: number | null
+  bill_number: string | null
+  gst_amount: number | null
+  total_with_gst: number | null
   date: string
   created_at: string
 }
@@ -46,6 +49,9 @@ type TransactionWriteData = {
   customer_name?: string
   payment_status?: 'paid' | 'unpaid' | 'partial'
   paid_amount?: number | null
+  bill_number?: string | null
+  gst_amount?: number | null
+  total_with_gst?: number | null
 }
 
 type TransactionUpdateData = Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>
@@ -321,5 +327,307 @@ export async function clearChatHistory(userId: string): Promise<void> {
   await supabase
     .from('chat_messages')
     .delete()
+    .eq('user_id', userId)
+}
+
+// ── Products ──────────────────────────────────────────────
+
+export interface Product {
+  id: string
+  user_id: string
+  name: string
+  hsn_code: string | null
+  unit: string
+  unit_price: number
+  gst_rate: number
+  created_at: string
+}
+
+export async function getProducts(userId: string): Promise<Product[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('user_id', userId)
+    .order('name')
+
+  if (error) return []
+  return (data ?? []) as Product[]
+}
+
+export async function findOrCreateProduct(
+  userId: string,
+  name: string,
+  defaults?: { hsn_code?: string; unit?: string; unit_price?: number; gst_rate?: number }
+): Promise<Product | null> {
+  const supabase = await createClient()
+  const normalizedName = name.trim()
+
+  // Try existing
+  const { data: existing } = await supabase
+    .from('products')
+    .select('*')
+    .eq('user_id', userId)
+    .ilike('name', normalizedName)
+    .limit(1)
+    .single()
+
+  if (existing) return existing as Product
+
+  // Create new
+  const { data: created, error } = await supabase
+    .from('products')
+    .insert({
+      user_id: userId,
+      name: normalizedName,
+      hsn_code: defaults?.hsn_code ?? null,
+      unit: defaults?.unit ?? 'pcs',
+      unit_price: defaults?.unit_price ?? 0,
+      gst_rate: defaults?.gst_rate ?? 0,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('findOrCreateProduct error:', error)
+    return null
+  }
+  return created as Product
+}
+
+// ── Transaction Items (line items) ────────────────────────
+
+export interface TransactionItem {
+  id: string
+  transaction_id: string
+  product_id: string | null
+  item_name: string
+  hsn_code: string | null
+  quantity: number
+  unit: string
+  rate: number
+  discount_pct: number
+  gst_rate: number
+  amount: number
+  gst_amount: number
+  total: number
+  created_at: string
+}
+
+export type TransactionItemInput = {
+  item_name: string
+  hsn_code?: string | null
+  quantity: number
+  unit?: string
+  rate: number
+  discount_pct?: number
+  gst_rate?: number
+}
+
+function computeItemTotals(item: TransactionItemInput) {
+  const quantity = item.quantity
+  const rate = item.rate
+  const discountPct = item.discount_pct ?? 0
+  const gstRate = item.gst_rate ?? 0
+
+  const lineTotal = quantity * rate
+  const discountAmount = lineTotal * (discountPct / 100)
+  const amount = Math.round((lineTotal - discountAmount) * 100) / 100
+  const gstAmount = Math.round(amount * (gstRate / 100) * 100) / 100
+  const total = Math.round((amount + gstAmount) * 100) / 100
+
+  return { amount, gst_amount: gstAmount, total }
+}
+
+export async function getTransactionItems(
+  transactionId: string
+): Promise<TransactionItem[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('transaction_items')
+    .select('*')
+    .eq('transaction_id', transactionId)
+    .order('created_at')
+
+  if (error) return []
+  return (data ?? []) as TransactionItem[]
+}
+
+export async function addTransactionItem(
+  transactionId: string,
+  item: TransactionItemInput
+): Promise<TransactionItem | null> {
+  const supabase = await createClient()
+  const computed = computeItemTotals(item)
+
+  const { data, error } = await supabase
+    .from('transaction_items')
+    .insert({
+      transaction_id: transactionId,
+      item_name: item.item_name,
+      hsn_code: item.hsn_code ?? null,
+      quantity: item.quantity,
+      unit: item.unit ?? 'pcs',
+      rate: item.rate,
+      discount_pct: item.discount_pct ?? 0,
+      gst_rate: item.gst_rate ?? 0,
+      amount: computed.amount,
+      gst_amount: computed.gst_amount,
+      total: computed.total,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('addTransactionItem error:', error)
+    return null
+  }
+  return data as TransactionItem
+}
+
+export async function deleteTransactionItem(
+  itemId: string
+): Promise<boolean> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('transaction_items')
+    .delete()
+    .eq('id', itemId)
+
+  if (error) {
+    console.error('deleteTransactionItem error:', error)
+    return false
+  }
+  return true
+}
+
+/** Recalculate and update the parent transaction's amount/gst from its items */
+export async function syncTransactionFromItems(
+  userId: string,
+  transactionId: string
+): Promise<Transaction | null> {
+  const items = await getTransactionItems(transactionId)
+  if (items.length === 0) return null
+
+  const totalAmount = items.reduce((s, i) => s + Number(i.amount), 0)
+  const totalGst = items.reduce((s, i) => s + Number(i.gst_amount), 0)
+  const totalWithGst = items.reduce((s, i) => s + Number(i.total), 0)
+
+  return updateTransaction(userId, transactionId, {
+    amount: Math.round(totalAmount * 100) / 100,
+    gst_amount: Math.round(totalGst * 100) / 100,
+    total_with_gst: Math.round(totalWithGst * 100) / 100,
+  })
+}
+
+// ── Payments ──────────────────────────────────────────────
+
+export interface Payment {
+  id: string
+  user_id: string
+  transaction_id: string
+  amount: number
+  payment_mode: 'cash' | 'upi' | 'bank' | 'cheque' | 'other'
+  reference: string | null
+  payment_date: string
+  notes: string | null
+  created_at: string
+}
+
+export type PaymentInput = {
+  transaction_id: string
+  amount: number
+  payment_mode?: 'cash' | 'upi' | 'bank' | 'cheque' | 'other'
+  reference?: string | null
+  payment_date?: string
+  notes?: string | null
+}
+
+export async function getPayments(
+  transactionId: string
+): Promise<Payment[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .eq('transaction_id', transactionId)
+    .order('payment_date', { ascending: false })
+
+  if (error) return []
+  return (data ?? []) as Payment[]
+}
+
+/**
+ * Record a payment against a transaction and auto-update its payment_status.
+ * Returns the created payment row.
+ */
+export async function addPayment(
+  userId: string,
+  input: PaymentInput
+): Promise<Payment | null> {
+  const supabase = await createClient()
+
+  const { data: payment, error } = await supabase
+    .from('payments')
+    .insert({
+      user_id: userId,
+      transaction_id: input.transaction_id,
+      amount: input.amount,
+      payment_mode: input.payment_mode ?? 'cash',
+      reference: input.reference ?? null,
+      payment_date: input.payment_date ?? new Date().toISOString().split('T')[0],
+      notes: input.notes ?? null,
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('addPayment error:', error)
+    return null
+  }
+
+  // Auto-update transaction paid_amount and payment_status
+  await syncPaymentStatus(userId, input.transaction_id)
+
+  return payment as Payment
+}
+
+/** Recalculate paid_amount and payment_status from all payments */
+export async function syncPaymentStatus(
+  userId: string,
+  transactionId: string
+): Promise<void> {
+  const supabase = await createClient()
+
+  // Get transaction total
+  const { data: tx } = await supabase
+    .from('transactions')
+    .select('amount, total_with_gst')
+    .eq('id', transactionId)
+    .eq('user_id', userId)
+    .single()
+
+  if (!tx) return
+
+  const transactionTotal = Number(tx.total_with_gst ?? tx.amount)
+
+  // Sum all payments
+  const payments = await getPayments(transactionId)
+  const totalPaid = payments.reduce((s, p) => s + Number(p.amount), 0)
+
+  let status: 'paid' | 'unpaid' | 'partial' = 'unpaid'
+  if (totalPaid >= transactionTotal) {
+    status = 'paid'
+  } else if (totalPaid > 0) {
+    status = 'partial'
+  }
+
+  await supabase
+    .from('transactions')
+    .update({
+      paid_amount: Math.round(totalPaid * 100) / 100,
+      payment_status: status,
+    })
+    .eq('id', transactionId)
     .eq('user_id', userId)
 }

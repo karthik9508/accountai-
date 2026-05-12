@@ -20,6 +20,7 @@ import {
 import {
   getCustomerStatement,
   getCustomerOutstanding,
+  getSalesReport,
   getInvoiceByNumber,
   updateInvoice,
   deleteInvoice,
@@ -109,6 +110,8 @@ export async function POST(req: NextRequest) {
         customer_name: aiResult.transaction.customer_name ?? null,
         payment_status: aiResult.transaction.payment_status ?? 'paid',
         paid_amount: aiResult.transaction.paid_amount ?? null,
+        bill_number: aiResult.transaction.bill_number ?? null,
+        items: aiResult.items ?? null,
       }
       finalReply = `I parsed this transaction — please review and confirm:\n\n${aiResult.reply}`
     }
@@ -159,11 +162,24 @@ export async function POST(req: NextRequest) {
           reply += `⏳ Outstanding: ${fmt(statement.totalOutstanding)}\n\n`
 
           if (statement.transactions.length > 0) {
-            reply += `**Recent Transactions (${statement.transactions.length}):**\n`
-            statement.transactions.slice(0, 5).forEach((t) => {
+            reply += `**Sales & Transactions (${statement.transactions.length}):**\n`
+            statement.transactions.slice(0, 10).forEach((t) => {
               const sign = t.type === 'income' ? '+' : '-'
-              reply += `${sign}${fmt(t.amount)} · ${t.category} · ${t.date}\n`
+              const statusIcon = t.payment_status === 'paid' ? '✅' : t.payment_status === 'partial' ? '🔶' : '🔴'
+              reply += `${statusIcon} ${sign}${fmt(t.amount)} · ${t.category} · ${t.date}`
+              if (t.bill_number) reply += ` · Bill #${t.bill_number}`
+              if (t.payment_status === 'partial' && t.paid_amount != null) reply += ` (paid ${fmt(t.paid_amount)})`
+              reply += '\n'
+              // Show line items if any
+              if (t.items.length > 0) {
+                t.items.forEach((item) => {
+                  reply += `  └ ${item.item_name}: ${item.quantity} ${item.unit} × ${fmt(item.rate)} = ${fmt(item.total)}\n`
+                })
+              }
             })
+            if (statement.transactions.length > 10) {
+              reply += `...and ${statement.transactions.length - 10} more\n`
+            }
           }
 
           if (statement.invoices.length > 0) {
@@ -195,6 +211,60 @@ export async function POST(req: NextRequest) {
         } else {
           finalReply = `⏳ **Outstanding for ${customerName}:**\n\n💰 Amount Due: **${fmt(result.outstanding)}**\n📄 Unpaid Invoices: **${result.unpaidInvoices}**\n\nSay "show statement for ${customerName}" for full details.`
         }
+      }
+    }
+
+    else if (aiResult.intent === 'query_sales_report') {
+      const report = await getSalesReport(user.id)
+
+      const fmt = (n: number) =>
+        new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n)
+
+      if (report.totalTransactions === 0) {
+        finalReply = `📊 No sales recorded yet. Start by saying "sales to [customer] [amount]" to record your first sale!`
+      } else {
+        let reply = `📊 **Complete Sales Report**\n\n`
+        reply += `💰 Total Sales: **${fmt(report.totalSales)}** (${report.totalTransactions} transactions)\n`
+        reply += `✅ Collected: ${fmt(report.totalPaid)}\n`
+        reply += `⏳ Outstanding: ${fmt(report.totalOutstanding)}\n\n`
+
+        // Top customers
+        if (report.topCustomers.length > 0) {
+          reply += `**🏆 Top Customers:**\n`
+          report.topCustomers.slice(0, 5).forEach((c, i) => {
+            reply += `${i + 1}. ${c.name}: ${fmt(c.total)}\n`
+          })
+          reply += '\n'
+        }
+
+        // Top products
+        if (report.topProducts.length > 0) {
+          reply += `**📦 Top Products:**\n`
+          report.topProducts.slice(0, 5).forEach((p, i) => {
+            reply += `${i + 1}. ${p.name}: ${p.quantity} sold · ${fmt(p.revenue)}\n`
+          })
+          reply += '\n'
+        }
+
+        // Recent sales
+        reply += `**📋 Recent Sales:**\n`
+        report.entries.slice(0, 10).forEach((e) => {
+          const statusIcon = e.payment_status === 'paid' ? '✅' : e.payment_status === 'partial' ? '🔶' : '🔴'
+          reply += `${statusIcon} ${e.date} · ${e.customer_name ?? 'Unknown'} · ${fmt(e.amount)}`
+          if (e.bill_number) reply += ` · Bill #${e.bill_number}`
+          if (e.payment_status === 'partial' && e.paid_amount != null) reply += ` (paid ${fmt(e.paid_amount)})`
+          reply += '\n'
+          if (e.items.length > 0) {
+            e.items.forEach((item) => {
+              reply += `  └ ${item.item_name}: ${item.quantity} ${item.unit} × ${fmt(item.rate)} = ${fmt(item.total)}\n`
+            })
+          }
+        })
+        if (report.entries.length > 10) {
+          reply += `...and ${report.entries.length - 10} more\n`
+        }
+
+        finalReply = reply
       }
     }
 
