@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -16,6 +17,12 @@ const navigationItems = [
   { href: '/transactions', label: 'Transactions', shortLabel: 'TX', active: false },
   { href: '/settings', label: 'Settings', shortLabel: 'ST', active: false },
 ]
+
+export const metadata: Metadata = {
+  title: 'Reports – Financial Reports & Analytics',
+  description: 'P&L, balance sheet, cash flow and sales reports. AccountAI makes accounting reports simple for small business owners.',
+  robots: { index: false, follow: false },
+}
 
 type RawSearchParams = Record<string, string | string[] | undefined>
 
@@ -97,12 +104,12 @@ function SidebarNav() {
       <div className="mb-8 flex items-center gap-2.5 px-2">
         <Image
           src="/fintrabooks-logo.svg"
-          alt="FintraBooks"
+          alt="AccountAI"
           width={40}
           height={40}
           className="h-10 w-10 rounded-lg"
         />
-        <span className="text-sm font-bold text-white">FintraBooks</span>
+        <span className="text-sm font-bold text-white">AccountAI</span>
       </div>
 
       <nav className="space-y-1">

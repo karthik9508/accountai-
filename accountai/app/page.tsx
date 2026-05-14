@@ -1,10 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { getSortedPostsData } from '@/lib/blogs'
 
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  const latestPosts = getSortedPostsData().slice(0, 3)
 
   // Authenticated users go straight to chat
   if (user) redirect('/chat')
@@ -18,23 +21,31 @@ export default async function Home() {
 
       {/* Navbar */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5 md:px-12">
-        <div className="flex items-center gap-2.5">
-          <img src="/fintrabooks-logo.svg" alt="FintraBooks" className="h-11 w-11 rounded-xl" />
-          <span className="text-lg font-bold text-white tracking-tight">FintraBooks</span>
-        </div>
-        <div className="flex items-center gap-3">
+        <Link href="/" className="flex items-center gap-2.5">
+          <img src="/fintrabooks-logo.svg" alt="AccountAI - Simple Accounting Software" className="h-11 w-11 rounded-xl" />
+          <span className="text-lg font-bold text-white tracking-tight">AccountAI</span>
+        </Link>
+        <div className="flex items-center gap-4 md:gap-6">
           <Link
-            href="/login"
-            className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition"
+            href="/blog"
+            className="hidden md:block text-sm font-medium text-gray-300 hover:text-white transition"
           >
-            Sign In
+            Blog
           </Link>
-          <Link
-            href="/signup"
-            className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 transition active:scale-[0.98]"
-          >
-            Get Started
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-300 hover:text-white transition"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/signup"
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 transition active:scale-[0.98]"
+            >
+              Get Started
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -42,19 +53,15 @@ export default async function Home() {
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center">
         <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-3.5 py-1.5">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-medium text-emerald-400">AI-Powered Accounting</span>
+          <span className="text-xs font-medium text-emerald-400">Simple Accounting Software for Small Business</span>
         </div>
 
         <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight max-w-3xl">
-          Your finances,{' '}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-300">
-            automated
-          </span>
-          {' '}by AI
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-emerald-300">Easy accounting software</span>{' '}with a chat interface
         </h1>
 
         <p className="mt-5 text-base md:text-lg text-gray-400 max-w-lg leading-relaxed">
-          Just tell FintraBooks what you spent or earned — in plain language. We handle the rest: parsing, categorizing, and reporting.
+          AccountAI is the simplest accounting software for small business. Just chat to record sales, purchases &amp; expenses. No forms, no spreadsheets — just type naturally.
         </p>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -76,19 +83,19 @@ export default async function Home() {
         <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl w-full">
           {[
             {
-              icon: '⚡',
-              title: 'Natural Language Input',
-              desc: 'Say "spent ₹500 on groceries" and we parse it into a structured transaction.',
+              icon: '💬',
+              title: 'Chat Interface Accounting',
+              desc: 'Just type "sold 5kg rice to Ravi at ₹40" — our AI parses it into a structured transaction instantly.',
             },
             {
               icon: '📊',
-              title: 'Instant Reports',
-              desc: 'P&L, category breakdown, and balance summaries — generated in real-time.',
+              title: 'Simple Accounting Reports',
+              desc: 'Sales reports, customer statements, P&L — all generated automatically for your small business.',
             },
             {
               icon: '🔒',
-              title: 'Secure & Private',
-              desc: 'Row-level security ensures only you can see your financial data.',
+              title: 'Easy & Secure',
+              desc: 'The easiest accounting software with bank-grade security. Your financial data stays private.',
             },
           ].map((f) => (
             <div
@@ -106,8 +113,8 @@ export default async function Home() {
       {/* How It Works */}
       <section className="relative z-10 py-24 px-6 md:px-12 w-full max-w-7xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">How it works</h2>
-          <p className="mt-4 text-gray-400 max-w-2xl mx-auto text-lg">Three simple steps to put your accounting on autopilot.</p>
+          <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">How AccountAI works</h2>
+          <p className="mt-4 text-gray-400 max-w-2xl mx-auto text-lg">Three simple steps — the easiest accounting software for your small business.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
@@ -208,6 +215,49 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Blog Section */}
+      <section className="relative z-10 py-24 px-6 md:px-12 w-full max-w-7xl mx-auto">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-5xl font-bold text-white tracking-tight">Latest from our Blog</h2>
+          <p className="mt-4 text-gray-400 max-w-2xl mx-auto text-lg">Insights, guides, and tips for managing your small business finances.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {latestPosts.map((post) => {
+            const formattedDate = new Date(post.date).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+            
+            return (
+              <Link key={post.slug} href={`/blog/${post.slug}`} className="group flex flex-col justify-between p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/30 transition duration-300 hover:bg-white/[0.04]">
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium">{post.category}</span>
+                    <span className="text-gray-500 text-xs">{formattedDate}</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-3 group-hover:text-emerald-400 transition">{post.title}</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed">{post.excerpt}</p>
+                </div>
+                <div className="mt-6 flex items-center text-emerald-500 text-sm font-medium">
+                  Read article
+                  <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                  </svg>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+        {latestPosts.length === 0 && (
+          <div className="text-center py-10 text-gray-500">
+            No blog posts published yet.
+          </div>
+        )}
+        <div className="mt-12 text-center">
+        </div>
+      </section>
+
       {/* Testimonials */}
       <section className="relative z-10 py-24 px-6 md:px-12 w-full max-w-7xl mx-auto">
         <div className="text-center mb-16">
@@ -241,8 +291,8 @@ export default async function Home() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[500px] max-h-[500px] bg-emerald-500/20 blur-[100px] rounded-full pointer-events-none" />
 
           <div className="relative z-10">
-            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">Ready to put your accounting on autopilot?</h2>
-            <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">Join thousands of modern businesses using FintraBooks to save time, reduce errors, and focus on growth.</p>
+            <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">Ready for the simplest accounting software?</h2>
+            <p className="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">Join thousands of small businesses using AccountAI to manage sales, invoices, and expenses — all through a simple chat interface.</p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/signup"
@@ -261,11 +311,11 @@ export default async function Home() {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center md:items-start gap-8">
           <div className="flex flex-col items-center md:items-start gap-3">
             <div className="flex items-center gap-2">
-              <img src="/fintrabooks-logo.svg" alt="FintraBooks" className="h-10 w-10 rounded-lg" />
-              <span className="text-lg font-bold text-white tracking-tight">FintraBooks</span>
+              <img src="/fintrabooks-logo.svg" alt="AccountAI Logo" className="h-10 w-10 rounded-lg" />
+              <span className="text-lg font-bold text-white tracking-tight">AccountAI</span>
             </div>
             <p className="text-gray-400 text-sm max-w-xs text-center md:text-left">
-              The AI-powered financial co-pilot for modern businesses and freelancers.
+              Simple accounting software for small business. Easy chat interface powered by AI.
             </p>
           </div>
 
@@ -279,7 +329,7 @@ export default async function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-white/5 text-center flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-600">
-          <p>© 2026 FintraBooks. All rights reserved.</p>
+          <p>© 2026 AccountAI by FintraBooks. All rights reserved.</p>
           <div className="flex gap-4">
             <Link href="#" className="hover:text-gray-400 transition">Privacy Policy</Link>
             <Link href="#" className="hover:text-gray-400 transition">Terms of Service</Link>

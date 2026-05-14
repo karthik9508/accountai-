@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { getChatHistory, getMonthlySummary, getBalance } from '@/lib/transactions'
@@ -7,6 +8,12 @@ import ClearChatButton from './_components/clear-chat-button'
 
 // Force dynamic rendering — always fetch fresh chat data
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Chat – Easy Accounting via Chat Interface',
+  description: 'Record sales, purchases & expenses by chatting with AccountAI. The simplest chat interface accounting software for small business.',
+  robots: { index: false, follow: false },
+}
 
 export default async function ChatPage() {
   const supabase = await createClient()
@@ -39,8 +46,8 @@ export default async function ChatPage() {
       <aside className="hidden md:flex w-64 flex-col border-r border-white/5 bg-[#0a0f0d]">
         {/* Brand */}
         <div className="flex items-center gap-2.5 px-5 py-5 border-b border-white/5">
-          <img src="/fintrabooks-logo.svg" alt="FintraBooks" className="h-10 w-10 rounded-lg" />
-          <span className="font-bold text-white text-sm tracking-tight">FintraBooks</span>
+          <img src="/fintrabooks-logo.svg" alt="AccountAI" className="h-10 w-10 rounded-lg" />
+          <span className="font-bold text-white text-sm tracking-tight">AccountAI</span>
         </div>
 
         {/* Financial Summary */}
@@ -110,7 +117,7 @@ export default async function ChatPage() {
               <span className="text-sm">🤖</span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">FintraBooks Assistant</p>
+              <p className="text-sm font-semibold text-white">AccountAI Assistant</p>
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-[10px] text-gray-500">AI-powered</span>

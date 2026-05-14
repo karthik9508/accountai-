@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
@@ -6,6 +7,12 @@ import { getAllTransactions } from '@/lib/transactions'
 import TransactionsTable from './_components/transactions-table'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Transactions – Manage Sales & Purchases',
+  description: 'View, edit and manage all your sales, purchases and expenses in AccountAI. Simple accounting software for small business.',
+  robots: { index: false, follow: false },
+}
 
 const navigationItems = [
   { href: '/chat', label: 'Chat', shortLabel: 'CH', icon: '💬', active: false },
@@ -27,8 +34,8 @@ export default async function TransactionsPage() {
       {/* Sidebar */}
       <aside className="hidden w-60 flex-col border-r border-white/5 bg-[#0a0f0d] px-4 py-6 md:flex">
         <div className="mb-8 flex items-center gap-2.5 px-2">
-          <Image src="/fintrabooks-logo.svg" alt="FintraBooks" width={40} height={40} className="h-10 w-10 rounded-lg" />
-          <span className="text-sm font-bold text-white">FintraBooks</span>
+          <Image src="/fintrabooks-logo.svg" alt="AccountAI" width={40} height={40} className="h-10 w-10 rounded-lg" />
+          <span className="text-sm font-bold text-white">AccountAI</span>
         </div>
 
         <nav className="space-y-1">

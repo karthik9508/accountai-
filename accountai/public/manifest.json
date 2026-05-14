@@ -1,0 +1,19 @@
+{
+  "name": "AccountAI - Simple Accounting Software",
+  "short_name": "AccountAI",
+  "description": "Easy accounting software with a chat interface for small businesses. Record sales, purchases & expenses by just chatting.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c0a",
+  "theme_color": "#10b981",
+  "orientation": "portrait",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/fintrabooks-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

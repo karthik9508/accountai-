@@ -38,28 +38,28 @@ export default function LoginPage() {
 
         {/* Logo */}
         <Link href="/" className="relative z-10 flex items-center gap-3 hover:opacity-80 transition">
-          <img src="/fintrabooks-logo.svg" alt="FintraBooks" className="h-12 w-12 rounded-xl" />
-          <span className="text-xl font-bold text-white tracking-tight">FintraBooks</span>
+          <img src="/fintrabooks-logo.svg" alt="AccountAI - Easy Accounting Software" className="h-12 w-12 rounded-xl" />
+          <span className="text-xl font-bold text-white tracking-tight">AccountAI</span>
         </Link>
 
         {/* Hero text */}
         <div className="relative z-10 space-y-8">
           <div>
             <h1 className="text-4xl font-bold text-white leading-tight">
-              Your AI-powered<br />
-              <span className="text-emerald-400">financial co-pilot</span>
+              Simple accounting<br />
+              <span className="text-emerald-400">for small business</span>
             </h1>
             <p className="mt-4 text-gray-400 text-base leading-relaxed max-w-sm">
-              Automate your accounting, get real-time insights, and let AI handle the numbers while you focus on growth.
+              AccountAI is the easiest chat interface accounting software. Just type your transactions naturally and let AI handle the rest.
             </p>
           </div>
 
           {/* Features */}
           <div className="space-y-4">
             {[
-              { icon: '⚡', title: 'AI Transaction Parsing', desc: 'Parse natural language into structured records' },
-              { icon: '📊', title: 'Real-time Reports', desc: 'P&L, Balance Sheet, Cash Flow — automated' },
-              { icon: '🔒', title: 'Bank-grade Security', desc: 'Row-level security on all your financial data' },
+              { icon: '💬', title: 'Chat Interface Accounting', desc: 'Record transactions in natural language' },
+              { icon: '📊', title: 'Simple Reports', desc: 'Sales reports, P&L, statements — automated' },
+              { icon: '🔒', title: 'Easy & Secure', desc: 'Simple accounting software with bank-grade security' },
             ].map((f) => (
               <div key={f.title} className="flex items-start gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-sm">
@@ -76,7 +76,7 @@ export default function LoginPage() {
 
         {/* Bottom tagline */}
         <p className="relative z-10 text-xs text-gray-600">
-          © 2026 FintraBooks — Built with Next.js & Supabase
+          © 2026 AccountAI by FintraBooks
         </p>
       </div>
 
@@ -84,15 +84,15 @@ export default function LoginPage() {
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 bg-[#080c0a]">
         {/* Mobile logo */}
         <Link href="/" className="mb-8 flex items-center gap-2 lg:hidden hover:opacity-80 transition">
-          <img src="/fintrabooks-logo.svg" alt="FintraBooks" className="h-10 w-10 rounded-lg" />
-          <span className="text-lg font-bold text-white">FintraBooks</span>
+          <img src="/fintrabooks-logo.svg" alt="AccountAI" className="h-10 w-10 rounded-lg" />
+          <span className="text-lg font-bold text-white">AccountAI</span>
         </Link>
 
         <div className="w-full max-w-md">
           {/* Header */}
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-white">Welcome back</h2>
-            <p className="mt-1 text-sm text-gray-500">Sign in to your FintraBooks workspace</p>
+            <p className="mt-1 text-sm text-gray-500">Sign in to your AccountAI workspace</p>
           </div>
 
           {/* Error alert */}
