@@ -23,6 +23,9 @@ export async function generateMetadata({ params }: { params: Params }) {
   return {
     title: `${post.title} - AccountAI Blog`,
     description: post.excerpt,
+    alternates: {
+      canonical: `/blog/${post.slug}`,
+    },
   }
 }
 

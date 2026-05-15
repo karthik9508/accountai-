@@ -7,6 +7,12 @@ import { createClient } from '@/lib/supabase/client'
 
 const initialState: AuthState = { error: null, message: null }
 
+export const metadata = {
+  alternates: {
+    canonical: '/login',
+  },
+}
+
 export default function LoginPage() {
   const [state, action, pending] = useActionState(signInAction, initialState)
   const [oauthPending, setOauthPending] = useState(false)

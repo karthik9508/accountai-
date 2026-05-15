@@ -4,6 +4,9 @@ import { getSortedPostsData } from '@/lib/blogs'
 export const metadata = {
   title: 'Blog - AccountAI',
   description: 'Insights, guides, and tips for managing your small business finances.',
+  alternates: {
+    canonical: '/blog',
+  },
 }
 
 export default async function BlogPage() {

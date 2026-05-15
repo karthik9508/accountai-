@@ -3,6 +3,12 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { getSortedPostsData } from '@/lib/blogs'
 
+export const metadata = {
+  alternates: {
+    canonical: '/',
+  },
+}
+
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
