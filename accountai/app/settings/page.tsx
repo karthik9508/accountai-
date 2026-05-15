@@ -3,6 +3,11 @@ import { redirect } from 'next/navigation'
 import { signOutAction } from '@/app/actions/auth'
 import SettingsForm from './_components/settings-form'
 import TemplateSelector from './_components/template-selector'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export default async function SettingsPage() {
   const supabase = await createClient()
