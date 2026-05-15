@@ -228,7 +228,7 @@ export default async function Home() {
               month: 'long',
               day: 'numeric'
             })
-            
+
             return (
               <Link key={post.slug} href={`/blog/${post.slug}`} className="group flex flex-col justify-between p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/30 transition duration-300 hover:bg-white/[0.04]">
                 <div>
@@ -322,7 +322,6 @@ export default async function Home() {
           <div className="flex flex-col items-center md:items-end gap-2 text-sm text-gray-400">
             <h3 className="text-white font-semibold mb-1">Contact Us</h3>
             <a href="mailto:support@fintrabooks.com" className="hover:text-emerald-400 transition">support@fintrabooks.com</a>
-            {/* Update this phone number to your actual number */}
             <a href="tel:+918695018620" className="hover:text-emerald-400 transition">+91 8695018620</a>
             <p>Tiruppur, India</p>
           </div>
@@ -338,9 +337,8 @@ export default async function Home() {
       </footer>
 
       {/* Floating WhatsApp Button */}
-      {/* Update the phone number in the href link below! */}
       <a
-        href="https://wa.me/911234567890?text=Hi%20FintraBooks,%20I%20want%20to%20know%20more!"
+        href="https://wa.me/918695018620?text=Hi%20FintraBooks,%20I%20want%20to%20know%20more!"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-emerald-500/20 hover:scale-110 hover:shadow-emerald-500/40 transition-all duration-300"
